@@ -3,18 +3,21 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 3
-  tags: []
+  tags:
+  - Drone
+  - Vehicle
+  - LaunchPoint
   layers:
   - Default
   - TransparentFX
   - Ignore Raycast
-  - 
+  -
   - Water
   - UI
-  - 
-  - 
-  - 
-  - 
+  - Drone
+  - Vehicle
+  - Environment
+  - Projectile
   - 
   - 
   - 
