@@ -19,8 +19,12 @@ namespace Ironfield.Vehicles
         [Tooltip("Optional label for the HUD.")]
         public string displayName = "Armoured target";
 
-        public HealthComponent Health { get; private set; }
-        public bool IsDestroyed { get; private set; }
+        HealthComponent _health;
+        bool _destroyed;
+
+        /// <summary>Resolved lazily so it also works outside play-mode lifecycle (tests).</summary>
+        public HealthComponent Health => _health != null ? _health : (_health = GetComponent<HealthComponent>());
+        public bool IsDestroyed => _destroyed || (Health != null && Health.IsDead);
 
         public System.Action<Vehicle, DamageInfo> Destroyed;
 
@@ -30,7 +34,7 @@ namespace Ironfield.Vehicles
 
         void Awake()
         {
-            Health = GetComponent<HealthComponent>();
+            _health = GetComponent<HealthComponent>();
             var rends = GetComponentsInChildren<Renderer>();
             if (rends.Length > 0)
             {
@@ -55,8 +59,8 @@ namespace Ironfield.Vehicles
 
         void OnDied(DamageInfo info)
         {
-            if (IsDestroyed) return;
-            IsDestroyed = true;
+            if (_destroyed) return;
+            _destroyed = true;
             VehicleRegistry.MarkDestroyed(this);
 
             foreach (var ai in GetComponentsInChildren<IVehicleSystem>())

@@ -74,6 +74,70 @@ namespace Ironfield.EditorTools
             Debug.Log("[Ironfield] Build complete. Open " + ScenePath);
         }
 
+        /// <summary>
+        /// Graphics-batchmode smoke shot: open Mission01, frame the convoy from
+        /// the launch ridge, render one PNG next to the project. Lets a headless
+        /// run eyeball model orientation / scale without opening the editor.
+        ///   Unity -batchmode -quit -executeMethod Ironfield.EditorTools.IronfieldSetup.Screenshot
+        /// </summary>
+        public static void Screenshot()
+        {
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var convoy = GameObject.Find("Convoy");
+            var launch = GameObject.Find("LaunchPoint");
+            var cam = Camera.main;
+            if (cam == null)
+            {
+                Debug.LogError("[Ironfield] No main camera in scene.");
+                return;
+            }
+
+            RenderSettings.fogDensity = 0.0009f; // clear the air for the smoke shots
+
+            Vector3 convoyCentre = Vector3.zero;
+            Transform first = null;
+            if (convoy != null && convoy.transform.childCount > 0)
+            {
+                first = convoy.transform.GetChild(0);
+                Bounds b = new Bounds(first.position, Vector3.one);
+                foreach (Transform c in convoy.transform) b.Encapsulate(c.position);
+                convoyCentre = b.center;
+            }
+
+            // wide shot from the launch ridge
+            Vector3 eye = launch != null ? launch.transform.position
+                                         : convoyCentre + new Vector3(-60, 40, -60);
+            Shot(cam, eye, convoyCentre, "Ironfield_smoke_wide.png");
+
+            // close shot on the lead vehicle
+            if (first != null)
+            {
+                Vector3 close = first.position + first.right * 14f + Vector3.up * 5f - first.forward * 4f;
+                Shot(cam, close, first.position + Vector3.up * 1.5f, "Ironfield_smoke_close.png");
+            }
+            _ = scene;
+        }
+
+        static void Shot(Camera cam, Vector3 eye, Vector3 lookAt, string file)
+        {
+            cam.transform.position = eye;
+            cam.transform.rotation = Quaternion.LookRotation(lookAt - eye, Vector3.up);
+            int w = 1280, h = 720;
+            var rt = new RenderTexture(w, h, 24);
+            cam.targetTexture = rt;
+            cam.Render();
+            RenderTexture.active = rt;
+            var tex = new Texture2D(w, h, TextureFormat.RGB24, false);
+            tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
+            tex.Apply();
+            cam.targetTexture = null;
+            RenderTexture.active = null;
+            Object.DestroyImmediate(rt);
+            string outPath = Path.GetFullPath(file);
+            File.WriteAllBytes(outPath, tex.EncodeToPNG());
+            Debug.Log("[Ironfield] Wrote " + outPath);
+        }
+
         static T LoadPrefabComponent<T>(string path) where T : Component
         {
             var go = AssetDatabase.LoadAssetAtPath<GameObject>(path);
@@ -317,8 +381,8 @@ namespace Ironfield.EditorTools
             var waypoints = new List<Transform>();
             Vector3[] pts =
             {
-                new(-420, 0, -260), new(-250, 0, -170), new(-90, 0, -120),
-                new(70, 0, -40), new(210, 0, 60), new(360, 0, 190), new(470, 0, 320),
+                new(-300, 0, -190), new(-180, 0, -120), new(-70, 0, -60),
+                new(40, 0, 0), new(150, 0, 60), new(300, 0, 170), new(430, 0, 300),
             };
             for (int i = 0; i < pts.Length; i++)
             {
@@ -333,10 +397,11 @@ namespace Ironfield.EditorTools
             // --- launch ridge --------------------------------------
             var launch = new GameObject("LaunchPoint");
             launch.tag = GameTags.LaunchPoint;
-            Vector3 lp = new(-430, 0, 40);
-            lp.y = SampleHeight(terrain, lp) + 28f;
+            Vector3 lp = new(-230, 0, 120);
+            lp.y = SampleHeight(terrain, lp) + 34f;
             launch.transform.position = lp;
-            launch.transform.rotation = Quaternion.Euler(8f, 70f, 0f);
+            launch.transform.rotation = Quaternion.LookRotation(
+                new Vector3(60, -10, -40) - lp, Vector3.up);
 
             // --- camera --------------------------------------------
             var camGo = new GameObject("MainCamera");
@@ -453,11 +518,12 @@ namespace Ironfield.EditorTools
             var rng = new System.Random(20260910);
             string[] names = { "Ruin_WallLong", "Ruin_WallCorner", "Ruin_RubblePile", "Ruin_HouseShell" };
 
-            for (int i = 0; i < 26; i++)
+            for (int i = 0; i < 30; i++)
             {
-                Vector3 c = new(-60 + (float)rng.NextDouble() * 320f,
+                // cluster the village around where the road bends past (40,0,0)
+                Vector3 c = new(-40 + (float)rng.NextDouble() * 220f,
                                 0,
-                                -140 + (float)rng.NextDouble() * 260f);
+                                -90 + (float)rng.NextDouble() * 200f);
                 c.y = SampleHeight(terrain, c);
                 GameObject piece;
                 if (ruins != null)

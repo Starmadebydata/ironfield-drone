@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1801837964441825978}
   - component: {fileID: 2061738326970631955}
-  - component: {fileID: 5523861587514367643}
+  - component: {fileID: 7768237718478345472}
   m_Layer: 0
   m_Name: MotorAudio
   m_TagString: Untagged
@@ -130,7 +130,7 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!114 &5523861587514367643
+--- !u!114 &7768237718478345472
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

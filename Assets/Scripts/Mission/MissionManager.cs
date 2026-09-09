@@ -31,6 +31,7 @@ namespace Ironfield.Mission
 
         public MissionState State { get; private set; } = MissionState.Briefing;
         public int DronesLeft { get; private set; }
+        bool _currentDroneSpent;
         public int VehiclesLeft => Mathf.Max(0, VehicleRegistry.TotalRegistered - VehicleRegistry.DestroyedCount);
         public int VehiclesTotal => VehicleRegistry.TotalRegistered;
         public DroneController ActiveDrone { get; private set; }
@@ -75,6 +76,7 @@ namespace Ironfield.Mission
             Vector3 pos = launchPoint ? launchPoint.position : Vector3.up * 30f;
             Quaternion rot = launchPoint ? launchPoint.rotation : Quaternion.identity;
 
+            _currentDroneSpent = false;
             ActiveDrone = Instantiate(dronePrefab, pos, rot);
             ActiveDrone.gameObject.tag = GameTags.Drone;
             ActiveDrone.gameObject.layer = GameLayers.Drone;
@@ -82,15 +84,29 @@ namespace Ironfield.Mission
             if (cameraRig) cameraRig.Bind(ActiveDrone.transform);
             if (targeting) targeting.viewCamera = cameraRig ? cameraRig.GetComponent<Camera>() : Camera.main;
 
+            // Warhead detonation (rams a target / ground): warhead destroys itself.
             var warhead = ActiveDrone.GetComponent<DroneWarhead>();
             if (warhead != null) warhead.Detonated += OnDroneSpent;
 
+            // Shot down with no detonation: kill the drone GameObject ourselves.
             var health = ActiveDrone.GetComponent<HealthComponent>();
-            if (health != null) health.Died += _ => OnDroneSpent(ActiveDrone.transform.position);
+            if (health != null)
+            {
+                var deadDrone = ActiveDrone;
+                health.Died += _ =>
+                {
+                    Vector3 where = deadDrone != null ? deadDrone.transform.position : pos;
+                    if (deadDrone != null) Destroy(deadDrone.gameObject);
+                    OnDroneSpent(where);
+                };
+            }
         }
 
         void OnDroneSpent(Vector3 at)
         {
+            if (_currentDroneSpent) return;          // one spend per drone
+            _currentDroneSpent = true;
+
             if (cameraRig) cameraRig.Shake(0.4f, 0.5f);
             DronesLeft--;
 

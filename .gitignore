@@ -20,3 +20,5 @@ sysinfo.txt
 *.aab
 *.unitypackage
 *.app
+Ironfield_smoke*.png
+*.png.import
