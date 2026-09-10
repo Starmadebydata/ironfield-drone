@@ -12,14 +12,14 @@ namespace Ironfield.Drone
     public class DroneCameraRig : MonoBehaviour
     {
         public Transform target;                 // the drone
-        public Vector3 localOffset = new Vector3(0f, 2.6f, -7.5f);
+        public Vector3 localOffset = new Vector3(0f, 2.3f, -6f);
         public float positionLerp = 13f;
         public float rotationLerp = 11f;
-        public float lookAhead = 3f;
+        public float lookAhead = 2.5f;
 
         [Header("FOV")]
-        public float baseFov = 62f;
-        public float boostFov = 74f;
+        public float baseFov = 58f;
+        public float boostFov = 70f;
         public float fovLerp = 6f;
 
         Camera _cam;

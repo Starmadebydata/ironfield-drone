@@ -173,8 +173,8 @@ namespace Ironfield.EditorTools
                 d.transform.position = launch.transform.position;
                 d.transform.rotation = launch.transform.rotation;
                 Vector3 back = -launch.transform.forward;
-                Vector3 eye3 = d.transform.position + back * 9f + Vector3.up * 3f;
-                Shot(cam, eye3, d.transform.position + d.transform.forward * 4f, "Ironfield_smoke_drone.png");
+                Vector3 eye3 = d.transform.position + back * 6f + Vector3.up * 2.3f;
+                Shot(cam, eye3, d.transform.position + d.transform.forward * 3f, "Ironfield_smoke_drone.png");
                 Object.DestroyImmediate(d);
             }
             _ = scene;
@@ -305,6 +305,10 @@ namespace Ironfield.EditorTools
             GameObject root = model != null
                 ? (GameObject)PrefabUtility.InstantiatePrefab(model)
                 : GameObject.CreatePrimitive(PrimitiveType.Cube);
+            // unpack so the imported children are plain objects we can reparent
+            if (model != null)
+                PrefabUtility.UnpackPrefabInstance(root, PrefabUnpackMode.Completely,
+                    InteractionMode.AutomatedAction);
             root.name = "Drone";
             root.tag = GameTags.Drone;
             SetLayerRecursive(root, GameLayers.Drone);
@@ -317,7 +321,21 @@ namespace Ironfield.EditorTools
             var visualRoot = new GameObject("Visual");
             visualRoot.transform.SetParent(root.transform, false);
             foreach (var k in existingKids) k.SetParent(visualRoot.transform, true);
-            visualRoot.transform.localScale = Vector3.one * 7f;
+
+            // Scale the imported visual to an explicit motor-to-motor size,
+            // measured from renderer bounds so it's independent of the FBX scale.
+            const float targetSpan = 3.8f;   // metres, prop tip to prop tip
+            var mfs = visualRoot.GetComponentsInChildren<MeshFilter>();
+            float span = 0f;
+            foreach (var mf in mfs)
+                if (mf.sharedMesh != null)
+                {
+                    var s = Vector3.Scale(mf.sharedMesh.bounds.size, mf.transform.lossyScale);
+                    span = Mathf.Max(span, s.x, s.z);
+                }
+            float mult = span > 0.001f ? targetSpan / span : 10f;
+            visualRoot.transform.localScale = Vector3.one * mult;
+            Debug.Log($"[Ironfield] drone visual span={span:0.00}m  ->  scale x{mult:0.0}  (meshes={mfs.Length})");
 
             // a small nav strobe so the drone is trackable against the ground
             var strobe = new GameObject("NavLight");
@@ -331,8 +349,8 @@ namespace Ironfield.EditorTools
             rb.mass = 1.2f; rb.useGravity = false;
 
             var col = root.AddComponent<BoxCollider>();
-            col.center = new Vector3(0f, 0.4f, 0f);
-            col.size = new Vector3(2.6f, 1.0f, 2.6f);
+            col.center = new Vector3(0f, 0.5f, 0f);
+            col.size = new Vector3(3.4f, 1.3f, 3.4f);
 
             var health = root.AddComponent<HealthComponent>();
             health.maxHealth = tuning.maxHealth; health.armor = 0f;
