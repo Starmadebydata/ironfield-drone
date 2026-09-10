@@ -79,3 +79,13 @@ regenerating, let Unity reimport; prefabs keep their component wiring.
 IMGUI HUD (swap for uGUI/TMP later), Built-in pipeline (URP conversion pending),
 blockout art only, single mission, no menu / settings / save, synth placeholder
 audio.
+
+## License
+
+Project code, Blender scripts, and original assets are released under the
+**MIT License** (see [`LICENSE`](LICENSE)).
+
+Bundled third-party 3D models from [Poly Pizza](https://poly.pizza) keep their
+own licenses (CC0 / CC-BY 3.0) — each model, its author, and its source URL are
+listed in [`CREDITS.md`](CREDITS.md). If you redistribute a build, keep the
+CC-BY attributions intact.
