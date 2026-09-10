@@ -99,9 +99,17 @@ namespace Ironfield.EditorTools
         {
             EnsureTagsAndLayers();
 
+            // wipe generated prefabs/materials so stale ones can't shadow rebuilds
+            if (AssetDatabase.IsValidFolder(PrefabDir)) AssetDatabase.DeleteAsset(PrefabDir);
+            foreach (var g in AssetDatabase.FindAssets("t:Material", new[] { SettingsDir }))
+            {
+                var mp = AssetDatabase.GUIDToAssetPath(g);
+                if (Path.GetFileName(mp).StartsWith("M_ext_")) AssetDatabase.DeleteAsset(mp);
+            }
             Directory.CreateDirectory(PrefabDir);
             Directory.CreateDirectory(SettingsDir);
             Directory.CreateDirectory(ScenesDir);
+            AssetDatabase.Refresh();
 
             ConfigureModelImport(ArtDrone, 1f);
             ConfigureModelImport(ArtDroneExt, 1f);
@@ -175,6 +183,17 @@ namespace Ironfield.EditorTools
             {
                 Vector3 close = first.position + first.right * 14f + Vector3.up * 5f - first.forward * 4f;
                 Shot(cam, close, first.position + Vector3.up * 1.5f, "Ironfield_smoke_close.png");
+            }
+
+            // village shot
+            var vg = GameObject.Find("Village");
+            if (vg != null)
+            {
+                Vector3 vc = new Vector3(40f, 0f, 0f);
+                var t = Terrain.activeTerrain;
+                if (t != null) vc.y = t.SampleHeight(vc) + t.transform.position.y;
+                Vector3 veye = vc + new Vector3(-55f, 26f, -55f);
+                Shot(cam, veye, vc + Vector3.up * 4f, "Ironfield_smoke_village.png");
             }
 
             // drone shot: spawn one at the launch point and frame it chase-cam style
@@ -287,13 +306,14 @@ namespace Ironfield.EditorTools
             float lum = c.r * 0.3f + c.g * 0.59f + c.b * 0.11f;
             if (lum < 0.06f) return c;                       // keep near-blacks (tracks, tyres)
             var olive = new Color(0.34f, 0.36f, 0.22f) * Mathf.Clamp01(lum * 1.8f + 0.12f);
-            return Color.Lerp(c, olive, 0.7f);
+            return Color.Lerp(c, olive, 0.55f);
         }
 
         static void ApplyPalette(GameObject go, string modelName, bool militarize)
         {
             LoadPalettes();
             if (!_palettes.TryGetValue(modelName, out var map)) return;
+            bool isTree = modelName.StartsWith("tree_");
             foreach (var r in go.GetComponentsInChildren<MeshRenderer>())
             {
                 var mats = r.sharedMaterials;
@@ -308,7 +328,10 @@ namespace Ironfield.EditorTools
                               : map.TryGetValue(baseKey, out var c2) ? c2
                               : mats[i].color;
                     if (militarize) col = Militarize(col);
-                    outMats[i] = MakeStandard($"ext_{modelName}_{key}", col, 0.15f, 0f);
+                    // the tree palettes are near-black; lift them into daylight
+                    if (isTree && col.maxColorComponent < 0.35f)
+                        col = new Color(col.r, col.g, col.b) * (0.35f / Mathf.Max(0.02f, col.maxColorComponent));
+                    outMats[i] = MakeStandard($"ext_{modelName}_{key}", col, 0.12f, 0f);
                 }
                 r.sharedMaterials = outMats;
             }
