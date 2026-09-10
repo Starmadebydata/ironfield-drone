@@ -94,9 +94,11 @@ namespace Ironfield.Drone
             Vector3 wantHoriz = fwd * (_in.Throttle * maxSpd)
                               + right * (_in.Roll * maxSpd * 0.45f);
 
-            // --- vertical: pitch stick drives climb rate, mild sink ----
-            float wantVert = _in.Pitch * tuning.climbAccel
-                             - (Mathf.Approximately(_in.Pitch, 0f) ? tuning.gravity * 0.25f : 0f);
+            // --- vertical: dedicated climb axis (Space/Ctrl, R/F, right-stick-Y)
+            //     plus a little lift from nose-up mouse aim; mild sink at neutral
+            float climbCmd = Mathf.Clamp(_in.Climb + _in.Pitch * 0.35f, -1f, 1f);
+            float wantVert = climbCmd * (tuning.climbAccel * (Boosting ? 1.5f : 1f))
+                             - (Mathf.Abs(climbCmd) < 0.05f ? tuning.gravity * 0.22f : 0f);
 
             // soft floor: within 5 m of the ground, stop pushing further down
             if (Physics.Raycast(transform.position + Vector3.up * 2f, Vector3.down,
@@ -116,9 +118,9 @@ namespace Ironfield.Drone
             _rb.linearVelocity = v;
             _speed = new Vector2(v.x, v.z).magnitude;
 
-            // --- visual attitude: bank into turns / roll, pitch to climb
+            // --- visual attitude: bank into turns / roll, nose with climb+throttle
             float targetBank = -_in.Roll * 28f - _in.Yaw * 14f;
-            float targetPitch = -_in.Pitch * 22f + _in.Throttle * 8f;
+            float targetPitch = -_in.Pitch * 18f + _in.Throttle * 8f - climbCmd * 10f;
             float k = 1f - Mathf.Exp(-tuning.angularDamp * dt);
             _bank = Mathf.Lerp(_bank, targetBank, k);
             _pitchVis = Mathf.Lerp(_pitchVis, targetPitch, k);

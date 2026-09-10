@@ -33,19 +33,22 @@ Steps 2 and 3 are also on the **Ironfield** editor menu once the project is open
 
 Open the project in Unity Hub, load `Assets/Scenes/Mission01.unity`, press Play.
 
-| Action        | Gamepad                     | Keyboard / mouse                     |
-|---------------|-----------------------------|-------------------------------------|
-| Throttle      | Left stick Y                | `W` / `S`                            |
-| Yaw           | Left stick X                | `A` / `D`                            |
-| Pitch / roll  | Right stick                 | hold RMB + move mouse, or arrows     |
-| Boost         | Right trigger               | `Left Shift`                         |
-| Detonate      | RB / A                      | `Space` / LMB                        |
-| (recall)      | Y                           | `R`                                  |
+| Action            | Gamepad                | Keyboard / mouse                       |
+|-------------------|------------------------|---------------------------------------|
+| Forward / back    | Left stick Y           | `W` / `S`                              |
+| Turn (yaw)        | Left stick X           | `A` / `D`                              |
+| **Climb / descend** | Right stick Y / RB-LB | **`Space` / `Ctrl`** (or `R` / `F`, or ↑ / ↓) |
+| Roll              | Right stick X          | `Q` / `E` (or ← / →)                    |
+| Fine aim          | —                      | hold RMB + move mouse                   |
+| Boost             | Right trigger          | `Left Shift`                            |
+| Detonate          | A / B                  | LMB or `Enter`                          |
+| Show controls     | —                      | hold `H`                               |
 
-Fly at a vehicle so the reticle locks, then dive into it — the warhead
-detonates on contact. Destroy all six vehicles to win; lose if the drone stock
-hits zero first. Return fire from tank/IFV turrets is off by default; enable the
-`VehicleTurret` components on the vehicle prefabs to turn it on.
+Fly at a vehicle so the reticle locks, then dive into it — the warhead detonates
+on contact (a hard lock gives you gentle terminal guidance on the way in).
+Destroy every vehicle to win; you fail if the column reaches the far end of the
+road, or you run out of drones. Tank / IFV turrets shoot back. The on-screen
+control legend fades after ~14 s; hold `H` to bring it back.
 
 ## Layout
 

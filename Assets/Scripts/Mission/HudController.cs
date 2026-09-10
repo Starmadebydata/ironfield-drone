@@ -4,6 +4,9 @@ using Ironfield.Drone;
 using Ironfield.Targeting;
 using Ironfield.Vehicles;
 using UnityEngine;
+#if ENABLE_INPUT_SYSTEM
+using UnityEngine.InputSystem;
+#endif
 
 namespace Ironfield.Mission
 {
@@ -28,6 +31,7 @@ namespace Ironfield.Mission
         float _killBanner;
         string _killText = "";
         float _vignette;         // 0..1 damage flash
+        bool _helpHeld;
 
         void OnEnable()
         {
@@ -56,6 +60,9 @@ namespace Ironfield.Mission
             _hitMarker = Mathf.Max(0f, _hitMarker - dt);
             _killBanner = Mathf.Max(0f, _killBanner - dt);
             _vignette = Mathf.Max(0f, _vignette - dt * 1.6f);
+#if ENABLE_INPUT_SYSTEM
+            _helpHeld = Keyboard.current != null && Keyboard.current.hKey.isPressed;
+#endif
         }
 
         void OnHit(Vector3 pos, bool vehicle)
@@ -112,6 +119,28 @@ namespace Ironfield.Mission
             {
                 GUI.Label(new Rect(24, h - 66, 320, 22), $"{drone.Speed * 3.6f:0} km/h", _label);
                 GUI.Label(new Rect(24, h - 44, 320, 22), $"ALT {drone.transform.position.y:0} m", _small);
+            }
+
+            // --- control legend (bottom-right; fades out, hold H to re-show) --
+            bool showHelp = mission.TimeActive < 14f || _helpHeld;
+            if (showHelp && mission.State == MissionState.Active)
+            {
+                float fade = _helpHeld ? 1f
+                    : Mathf.Clamp01(Mathf.Min(mission.TimeActive, 14f - mission.TimeActive) / 2f);
+                var hs = new GUIStyle(_small);
+                var hc = hs.normal.textColor; hc.a = fade; hs.normal.textColor = hc;
+                string[] keys =
+                {
+                    "W / S    forward / back",
+                    "A / D    turn",
+                    "SPACE / CTRL   climb / descend",
+                    "Q / E    roll     SHIFT   boost",
+                    "LMB / ENTER   detonate",
+                    "hold RMB + mouse   aim",
+                    "(hold H for controls)",
+                };
+                for (int i = 0; i < keys.Length; i++)
+                    GUI.Label(new Rect(w - 260, h - 24 - (keys.Length - i) * 16, 250, 16), keys[i], hs);
             }
 
             // --- briefing (first seconds) ----------------------------
