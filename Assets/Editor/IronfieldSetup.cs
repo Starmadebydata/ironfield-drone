@@ -283,6 +283,7 @@ namespace Ironfield.EditorTools
         /// the instance (unparented) or null if the model is missing.
         /// </summary>
         static Dictionary<string, Dictionary<string, Color>> _palettes;
+        static Color _skyColor = new(0.70f, 0.76f, 0.83f);
 
         static void LoadPalettes()
         {
@@ -312,8 +313,8 @@ namespace Ironfield.EditorTools
         {
             float lum = c.r * 0.3f + c.g * 0.59f + c.b * 0.11f;
             if (lum < 0.06f) return c;                       // keep near-blacks (tracks, tyres)
-            var olive = new Color(0.34f, 0.36f, 0.22f) * Mathf.Clamp01(lum * 1.8f + 0.12f);
-            return Color.Lerp(c, olive, 0.55f);
+            var olive = new Color(0.29f, 0.31f, 0.19f) * Mathf.Clamp01(lum * 1.6f + 0.10f);
+            return Color.Lerp(c, olive, 0.80f);              // strongly de-toy the tank
         }
 
         static void ApplyPalette(GameObject go, string modelName, bool militarize)
@@ -685,27 +686,45 @@ namespace Ironfield.EditorTools
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
-            // --- lighting / atmosphere (Built-in) ---------------------
+            // --- lighting / atmosphere (Built-in) : hazy overcast afternoon ---
             var sunGo = new GameObject("Sun");
             var sun = sunGo.AddComponent<Light>();
             sun.type = LightType.Directional;
-            sun.color = new Color(1f, 0.95f, 0.83f);
-            sun.intensity = 1.15f;
+            sun.color = new Color(1f, 0.95f, 0.85f);
+            sun.intensity = 1.5f;                           // clear afternoon: real contrast
             sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.72f;
-            sunGo.transform.rotation = Quaternion.Euler(46f, 32f, 0f);   // mid-afternoon, above the frame
+            sun.shadowStrength = 0.8f;
+            sun.shadowBias = 0.04f; sun.shadowNormalBias = 0.5f;
+            sunGo.transform.rotation = Quaternion.Euler(48f, 34f, 0f);
             RenderSettings.sun = sun;
+
+            // cool skylight fill so shadow sides aren't dead black
+            var fillGo = new GameObject("SkyFill");
+            var fill = fillGo.AddComponent<Light>();
+            fill.type = LightType.Directional;
+            fill.color = new Color(0.45f, 0.53f, 0.68f);
+            fill.intensity = 0.22f;
+            fill.shadows = LightShadows.None;
+            fillGo.transform.rotation = Quaternion.Euler(-28f, 210f, 0f);
+
+            var skyCol = new Color(0.53f, 0.66f, 0.83f);
+            RenderSettings.skybox = null;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.55f, 0.63f, 0.76f);
-            RenderSettings.ambientEquatorColor = new Color(0.47f, 0.47f, 0.42f);
-            RenderSettings.ambientGroundColor = new Color(0.17f, 0.16f, 0.13f);
+            RenderSettings.ambientSkyColor = new Color(0.42f, 0.49f, 0.60f);
+            RenderSettings.ambientEquatorColor = new Color(0.40f, 0.38f, 0.33f);
+            RenderSettings.ambientGroundColor = new Color(0.15f, 0.14f, 0.11f);
+
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = new Color(0.72f, 0.77f, 0.83f);
-            RenderSettings.fogDensity = 0.0018f;                        // reveal mid-distance, haze the far ridge
-            QualitySettings.shadowDistance = 360f;
+            RenderSettings.fogColor = new Color(0.66f, 0.72f, 0.82f);
+            RenderSettings.fogDensity = 0.0010f;            // clear mid-field, haze only the far ridge
+            QualitySettings.shadowDistance = 420f;
             QualitySettings.shadowCascades = 4;
             QualitySettings.shadows = ShadowQuality.All;
+            QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
+            QualitySettings.antiAliasing = 4;
+            QualitySettings.pixelLightCount = 4;
+            _skyColor = skyCol;
 
             // --- terrain ---------------------------------------------
             var terrain = BuildTerrain();
@@ -746,10 +765,19 @@ namespace Ironfield.EditorTools
             var camGo = new GameObject("MainCamera");
             camGo.tag = "MainCamera";
             var cam = camGo.AddComponent<Camera>();
-            cam.fieldOfView = 62f;
-            cam.farClipPlane = 1400f;
+            cam.fieldOfView = 60f;
+            cam.farClipPlane = 1600f;
             cam.nearClipPlane = 0.08f;
+            cam.allowHDR = true;
+            cam.allowMSAA = true;
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = _skyColor;
             camGo.AddComponent<AudioListener>();
+            var post = camGo.AddComponent<Ironfield.Fx.CameraPost>();
+            post.exposure = 1.0f;
+            post.contrast = 1.11f;
+            post.saturation = 1.14f;
+            post.vignette = 0.26f;
             var rig = camGo.AddComponent<DroneCameraRig>();
             camGo.transform.position = lp + new Vector3(0, 3, -8);
 
@@ -781,8 +809,9 @@ namespace Ironfield.EditorTools
                 prevAhead = vinst;
             }
 
-            // --- village ruins ----------------------------------
+            // --- village ruins + battlefield dressing ----------
             ScatterRuins(terrain);
+            ScenePropsPass(terrain, waypoints);
 
             // --- managers --------------------------------------
             var mgrGo = new GameObject("MissionManager");
@@ -898,8 +927,9 @@ namespace Ironfield.EditorTools
                 float n = Fbm(u * 4f + ox, v * 4f + oy, 5, 2.17f, 0.55f);
                 float blotch = Mathf.PerlinNoise(u * 7f + ox, v * 7f + oy);
                 float g = (float)rng.NextDouble() - 0.5f;
-                Color c = Color.Lerp(a, b, Mathf.Clamp01(0.5f + n * 1.6f + (blotch - 0.5f) * 0.6f));
-                c += new Color(1f, 1f, 1f, 0f) * (n * 0.18f + g * grain);
+                Color c = Color.Lerp(a, b, Mathf.Clamp01(0.5f + n * 1.4f + (blotch - 0.5f) * 0.55f));
+                c += new Color(1f, 1f, 1f, 0f) * (n * 0.10f + g * grain * 0.7f);
+                c *= 0.82f;   // ground reads darker once it's lit
                 px[y * size + x] = c;
             }
             tex.SetPixels(px);
@@ -963,11 +993,11 @@ namespace Ironfield.EditorTools
                 return tl;
             }
 
-            var grass = L("grass", new Color(0.24f, 0.32f, 0.13f), new Color(0.37f, 0.43f, 0.22f), 0.05f, 8f);
-            var dry = L("dry", new Color(0.46f, 0.43f, 0.26f), new Color(0.60f, 0.55f, 0.36f), 0.05f, 10f);
-            var dirt = L("dirt", new Color(0.30f, 0.24f, 0.17f), new Color(0.44f, 0.36f, 0.26f), 0.06f, 6f);
-            var gravel = L("gravel", new Color(0.27f, 0.25f, 0.22f), new Color(0.44f, 0.42f, 0.39f), 0.10f, 3.5f);
-            var rock = L("rock", new Color(0.20f, 0.19f, 0.18f), new Color(0.40f, 0.39f, 0.37f), 0.09f, 12f);
+            var grass = L("grass", new Color(0.17f, 0.24f, 0.09f), new Color(0.28f, 0.34f, 0.16f), 0.05f, 8f);
+            var dry = L("dry", new Color(0.34f, 0.32f, 0.19f), new Color(0.47f, 0.43f, 0.27f), 0.05f, 10f);
+            var dirt = L("dirt", new Color(0.22f, 0.17f, 0.12f), new Color(0.34f, 0.27f, 0.19f), 0.06f, 6f);
+            var gravel = L("gravel", new Color(0.20f, 0.19f, 0.16f), new Color(0.34f, 0.32f, 0.29f), 0.10f, 3.5f);
+            var rock = L("rock", new Color(0.16f, 0.15f, 0.14f), new Color(0.32f, 0.31f, 0.29f), 0.09f, 12f);
             var burn = L("burn", new Color(0.05f, 0.045f, 0.04f), new Color(0.16f, 0.14f, 0.12f), 0.05f, 5f);
             data.terrainLayers = new[] { grass, dry, dirt, gravel, rock, burn };
 
@@ -999,9 +1029,10 @@ namespace Ironfield.EditorTools
                 float macro = Fbm(wx * 0.0045f + 2f, wz * 0.0045f + 6f, 3);
                 float meso = Mathf.PerlinNoise(wx * 0.02f + 4f, wz * 0.02f + 1f);
 
-                float wGrass = Mathf.Clamp01(0.62f - macro * 1.7f) * (1f - slope01);
-                float wDry = Mathf.Clamp01(0.5f + macro * 1.7f) * (1f - slope01);
-                float wDirt = Mathf.Clamp01((meso - 0.62f) * 4f) * (1f - slope01) * 0.7f;
+                // grass-dominant meadow with dry patches, not the other way round
+                float wGrass = (1.15f + macro * 1.3f) * (1f - slope01);
+                float wDry = Mathf.Clamp01(0.30f + macro * 1.9f) * (1f - slope01) * 0.8f;
+                float wDirt = Mathf.Clamp01((meso - 0.66f) * 4f) * (1f - slope01) * 0.6f;
                 // thin shoulder only — the crisp road surface is the ribbon mesh
                 float wRoad = RoadMask(new Vector3(wx, 0, wz), waypoints, 6.5f, 2.5f) * 4f;
                 float wRock = slope01 * 3.5f + Mathf.Clamp01(hz01 - 0.62f) * 2f;
@@ -1371,6 +1402,140 @@ namespace Ironfield.EditorTools
         static float SampleHeight(Terrain t, Vector3 world)
             => t.SampleHeight(world) + t.transform.position.y;
 
+        static void DestroyIfPresent<T>(GameObject go) where T : Component
+        {
+            var c = go.GetComponent<T>();
+            if (c != null) Object.DestroyImmediate(c);
+        }
+
+        // ---- battlefield dressing: poles+wires, wrecks, debris, dust --------
+        static void ScenePropsPass(Terrain terrain, List<Transform> waypoints)
+        {
+            var parent = new GameObject("BattlefieldProps").transform;
+            var rng = new System.Random(555);
+            var wood = MakeUnlit(new Color(0.20f, 0.16f, 0.11f), "pole_wood");
+            var charred = MakeUnlit(new Color(0.05f, 0.045f, 0.04f), "wreck_char");
+            var rubble = MakeUnlit(new Color(0.28f, 0.26f, 0.23f), "rubble");
+            var pts = ResamplePath(waypoints, 42f);
+
+            // --- utility poles along the road with a sagging wire ---------
+            var poleTops = new List<Vector3>();
+            for (int i = 1; i < pts.Count - 1; i++)
+            {
+                Vector3 fwd = (pts[i + 1] - pts[i - 1]).normalized;
+                Vector3 side = Vector3.Cross(Vector3.up, fwd);
+                Vector3 baseP = pts[i] + side * 9f;
+                baseP.y = SampleHeight(terrain, baseP);
+
+                var pole = new GameObject("Pole").transform;
+                pole.SetParent(parent);
+                pole.position = baseP;
+                pole.rotation = Quaternion.LookRotation(fwd, Vector3.up)
+                                * Quaternion.Euler((float)rng.NextDouble() * 4f - 2f, 0, (float)rng.NextDouble() * 4f - 2f);
+                var shaft = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                shaft.transform.SetParent(pole, false);
+                shaft.transform.localScale = new Vector3(0.25f, 8.5f, 0.25f);
+                shaft.transform.localPosition = new Vector3(0, 4.25f, 0);
+                shaft.GetComponent<MeshRenderer>().sharedMaterial = wood;
+                var arm = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                arm.transform.SetParent(pole, false);
+                arm.transform.localScale = new Vector3(2.4f, 0.18f, 0.18f);
+                arm.transform.localPosition = new Vector3(0, 8f, 0);
+                arm.GetComponent<MeshRenderer>().sharedMaterial = wood;
+                SetLayerRecursive(pole.gameObject, GameLayers.Environment);
+                poleTops.Add(baseP + Vector3.up * 8f);
+            }
+            if (poleTops.Count > 1)
+            {
+                var wireGo = new GameObject("Wires");
+                wireGo.transform.SetParent(parent);
+                var lr = wireGo.AddComponent<LineRenderer>();
+                lr.useWorldSpace = true;
+                lr.widthMultiplier = 0.05f;
+                lr.material = MakeUnlit(new Color(0.05f, 0.05f, 0.05f), "wire");
+                lr.positionCount = poleTops.Count;
+                for (int i = 0; i < poleTops.Count; i++)
+                    lr.SetPosition(i, poleTops[i] + Vector3.down * (i % 2 == 0 ? 0f : 0.6f)); // slight sag
+                lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+
+            // --- knocked-out vehicle hulks beside the road --------------
+            string[] hulkSrc = { "Tank.prefab", "IFV.prefab", "Truck.prefab" };
+            for (int i = 0; i < 4; i++)
+            {
+                float t = 0.15f + (float)rng.NextDouble() * 0.7f;
+                int seg = Mathf.Clamp(Mathf.FloorToInt(t * (waypoints.Count - 1)), 0, waypoints.Count - 2);
+                Vector3 a = waypoints[seg].position, b = waypoints[seg + 1].position;
+                Vector3 dir = (b - a).normalized;
+                Vector3 sidev = Vector3.Cross(Vector3.up, dir);
+                Vector3 p = Vector3.Lerp(a, b, (float)rng.NextDouble())
+                            + sidev * (rng.NextDouble() < 0.5 ? -1f : 1f) * (7f + (float)rng.NextDouble() * 5f);
+                p.y = SampleHeight(terrain, p);
+
+                var src = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/" + hulkSrc[rng.Next(hulkSrc.Length)]);
+                if (src == null) continue;
+                var hulk = (GameObject)PrefabUtility.InstantiatePrefab(src);
+                PrefabUtility.UnpackPrefabInstance(hulk, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                // strip gameplay so a hulk is scenery, not a live target
+                // (dependency order: dependents before their RequireComponent)
+                DestroyIfPresent<VehicleConvoyAI>(hulk);
+                DestroyIfPresent<VehicleTurret>(hulk);
+                DestroyIfPresent<Wreck>(hulk);
+                DestroyIfPresent<Vehicle>(hulk);
+                DestroyIfPresent<HealthComponent>(hulk);
+                DestroyIfPresent<Rigidbody>(hulk);
+                hulk.name = "Hulk";
+                hulk.transform.SetParent(parent);
+                hulk.transform.position = p;
+                hulk.transform.rotation = Quaternion.Euler((float)rng.NextDouble() * 12f - 6f,
+                    (float)rng.NextDouble() * 360f, (float)rng.NextDouble() * 18f - 9f);
+                foreach (var r in hulk.GetComponentsInChildren<MeshRenderer>())
+                {
+                    var ms = new Material[r.sharedMaterials.Length];
+                    for (int k = 0; k < ms.Length; k++) ms[k] = charred;
+                    r.sharedMaterials = ms;
+                }
+                SetLayerRecursive(hulk, GameLayers.Environment);
+
+                // scorch + smoke plume on the hulk
+                var fs = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/FireSmoke.prefab");
+                if (fs != null && rng.NextDouble() < 0.6)
+                {
+                    var plume = (GameObject)PrefabUtility.InstantiatePrefab(fs);
+                    plume.transform.SetParent(hulk.transform);
+                    plume.transform.localPosition = Vector3.up * 2f;
+                }
+            }
+
+            // --- rubble clusters near the village ----------------------
+            for (int i = 0; i < 30; i++)
+            {
+                Vector3 c = new(40f + (float)rng.NextDouble() * 200f - 100f, 0,
+                                (float)rng.NextDouble() * 180f - 90f);
+                c.y = SampleHeight(terrain, c);
+                var pile = new GameObject("Rubble").transform;
+                pile.SetParent(parent);
+                pile.position = c;
+                int chunks = 3 + rng.Next(4);
+                for (int k = 0; k < chunks; k++)
+                {
+                    var b = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    b.transform.SetParent(pile, false);
+                    float s = 0.4f + (float)rng.NextDouble() * 0.9f;
+                    b.transform.localScale = new Vector3(s, s * 0.6f, s * (0.7f + (float)rng.NextDouble() * 0.6f));
+                    b.transform.localPosition = new Vector3(((float)rng.NextDouble() - 0.5f) * 2f, s * 0.3f,
+                        ((float)rng.NextDouble() - 0.5f) * 2f);
+                    b.transform.localRotation = Quaternion.Euler((float)rng.NextDouble() * 40f,
+                        (float)rng.NextDouble() * 360f, (float)rng.NextDouble() * 40f);
+                    Object.DestroyImmediate(b.GetComponent<Collider>());
+                    b.GetComponent<MeshRenderer>().sharedMaterial = rng.NextDouble() < 0.4 ? charred : rubble;
+                }
+                SetLayerRecursive(pile.gameObject, GameLayers.Environment);
+            }
+
+            StaticBatchingUtility.Combine(parent.gameObject);
+        }
+
         static void ScatterRuins(Terrain terrain)
         {
             var parent = new GameObject("Village").transform;
@@ -1547,6 +1712,7 @@ namespace Ironfield.EditorTools
 
         static readonly Dictionary<string, Material> _matCache = new();
 
+        /// <summary>Matte LIT material — props catch the sun and read as solid form.</summary>
         static Material MakeUnlit(Color c, string name)
         {
             if (_matCache.TryGetValue(name, out var cached) && cached != null) return cached;
@@ -1554,11 +1720,28 @@ namespace Ironfield.EditorTools
             var existing = AssetDatabase.LoadAssetAtPath<Material>(p);
             if (existing == null)
             {
-                var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
-                existing = new Material(shader) { name = name, color = c };
+                existing = new Material(Shader.Find("Standard")) { name = name, color = c };
+                existing.SetFloat("_Glossiness", 0.06f);
+                existing.SetFloat("_Metallic", 0f);
                 AssetDatabase.CreateAsset(existing, p);
             }
             _matCache[name] = existing;
+            return existing;
+        }
+
+        /// <summary>Genuinely unlit FX material (tracers, particle quads).</summary>
+        static Material MakeFx(Color c, string name)
+        {
+            if (_matCache.TryGetValue("fx_" + name, out var cached) && cached != null) return cached;
+            string p = SettingsDir + "/M_fx_" + name + ".mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(p);
+            if (existing == null)
+            {
+                var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
+                existing = new Material(shader) { name = "fx_" + name, color = c };
+                AssetDatabase.CreateAsset(existing, p);
+            }
+            _matCache["fx_" + name] = existing;
             return existing;
         }
 
@@ -1583,7 +1766,7 @@ namespace Ironfield.EditorTools
             var go = new GameObject("Tracer");
             var lr = go.AddComponent<LineRenderer>();
             lr.widthMultiplier = 0.06f;
-            lr.material = MakeUnlit(new Color(1f, 0.8f, 0.3f), "Tracer");
+            lr.material = MakeFx(new Color(1f, 0.8f, 0.3f), "tracer");
             lr.numCapVertices = 0;
             var prefab = SavePrefab(go, PrefabDir + "/Tracer.prefab");
             Object.DestroyImmediate(go);
@@ -1615,7 +1798,7 @@ namespace Ironfield.EditorTools
                 new[] { new GradientAlphaKey(1f, 0f), new GradientAlphaKey(0f, 1f) });
             col.color = grad;
             var rend = go.GetComponent<ParticleSystemRenderer>();
-            rend.material = MakeUnlit(Color.white, name + "_ps");
+            rend.material = MakeFx(Color.white, name + "_ps");
         }
 
         const string AudioDir = "Assets/Audio";
