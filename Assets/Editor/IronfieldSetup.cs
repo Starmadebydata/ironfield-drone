@@ -516,17 +516,6 @@ namespace Ironfield.EditorTools
                 pivot.transform.rotation = Quaternion.identity;
                 tr.SetParent(pivot.transform, true);
                 props.Add(pivot.transform);
-
-                // motion-blur disc: a flat translucent ring that reads as a spinning rotor
-                var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                disc.name = "BlurDisc";
-                Object.DestroyImmediate(disc.GetComponent<Collider>());
-                disc.transform.SetParent(pivot.transform, false);
-                float rad = Mathf.Max(mr.bounds.extents.x, mr.bounds.extents.z) * 1.05f;
-                disc.transform.localScale = new Vector3(rad * 2f, 0.012f, rad * 2f);
-                disc.GetComponent<MeshRenderer>().sharedMaterial = PropBlurMat();
-                disc.GetComponent<MeshRenderer>().shadowCastingMode =
-                    UnityEngine.Rendering.ShadowCastingMode.Off;
             }
 
             // --- underslung warhead (visual only) ----------------------
@@ -1813,28 +1802,6 @@ namespace Ironfield.EditorTools
             }
             _matCache["fx_" + name] = existing;
             return existing;
-        }
-
-        static Material PropBlurMat()
-        {
-            if (_matCache.TryGetValue("prop_blur", out var m) && m != null) return m;
-            const string p = SettingsDir + "/M_prop_blur.mat";
-            var ex = AssetDatabase.LoadAssetAtPath<Material>(p);
-            if (ex == null)
-            {
-                ex = new Material(Shader.Find("Standard")) { name = "prop_blur" };
-                ex.SetFloat("_Mode", 3f);
-                ex.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
-                ex.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
-                ex.SetInt("_ZWrite", 0);
-                ex.DisableKeyword("_ALPHATEST_ON");
-                ex.EnableKeyword("_ALPHABLEND_ON");
-                ex.renderQueue = 3000;
-                ex.color = new Color(0.14f, 0.14f, 0.15f, 0.22f);
-                AssetDatabase.CreateAsset(ex, p);
-            }
-            _matCache["prop_blur"] = ex;
-            return ex;
         }
 
         static Material MakeStandard(string name, Color c, float smoothness, float metallic)
