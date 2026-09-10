@@ -32,14 +32,21 @@ namespace Ironfield.Mission
         public MissionState State { get; private set; } = MissionState.Briefing;
         public int DronesLeft { get; private set; }
         bool _currentDroneSpent;
-        public int VehiclesLeft => Mathf.Max(0, VehicleRegistry.TotalRegistered - VehicleRegistry.DestroyedCount);
+
+        public int Killed => VehicleRegistry.DestroyedCount;
+        public int Escaped => VehicleRegistry.EscapedCount;
+        public int VehiclesLeft => Mathf.Max(0, VehicleRegistry.TotalRegistered
+                                   - VehicleRegistry.DestroyedCount - VehicleRegistry.EscapedCount);
         public int VehiclesTotal => VehicleRegistry.TotalRegistered;
         public DroneController ActiveDrone { get; private set; }
 
-        /// <summary>Seconds since the mission became Active (for the briefing fade).</summary>
+        /// <summary>Seconds since the mission became Active (for the briefing fade + score).</summary>
         public float TimeActive { get; private set; }
         /// <summary>Raised with the damage amount whenever the current drone is hit.</summary>
         public event System.Action<float> DroneDamaged;
+
+        public int Score { get; private set; }
+        public string Grade { get; private set; } = "";
 
         void Start()
         {
@@ -61,12 +68,33 @@ namespace Ironfield.Mission
             if (State != MissionState.Active) return;
             TimeActive += Time.deltaTime;
 
-            if (VehicleRegistry.DestroyedCount >= VehicleRegistry.TotalRegistered &&
-                VehicleRegistry.TotalRegistered > 0)
-            {
-                State = MissionState.Won;
-                if (ActiveDrone) ActiveDrone.ControlsEnabled = false;
-            }
+            int total = VehicleRegistry.TotalRegistered;
+            if (total == 0) return;
+
+            if (VehicleRegistry.DestroyedCount >= total)
+                EndMission(MissionState.Won);
+            // every vehicle is off the board and you didn't get them all
+            else if (VehicleRegistry.DestroyedCount + VehicleRegistry.EscapedCount >= total)
+                EndMission(MissionState.Lost);
+        }
+
+        void EndMission(MissionState result)
+        {
+            if (State != MissionState.Active) return;
+            State = result;
+            if (ActiveDrone) ActiveDrone.ControlsEnabled = false;
+
+            int dronesUsed = droneStock - DronesLeft;
+            Score = Killed * 1000
+                    - Escaped * 400
+                    - dronesUsed * 120
+                    - Mathf.RoundToInt(TimeActive) * 2;
+            Score = Mathf.Max(0, Score);
+
+            float frac = Killed / (float)Mathf.Max(1, VehiclesTotal);
+            Grade = result == MissionState.Won
+                ? (dronesUsed <= VehiclesTotal ? "S" : dronesUsed <= VehiclesTotal + 2 ? "A" : "B")
+                : (frac >= 0.66f ? "C" : frac >= 0.33f ? "D" : "F");
         }
 
         void SpawnDrone()
@@ -75,7 +103,7 @@ namespace Ironfield.Mission
 
             if (DronesLeft <= 0)
             {
-                State = MissionState.Lost;
+                EndMission(MissionState.Lost);
                 return;
             }
 
@@ -89,6 +117,10 @@ namespace Ironfield.Mission
 
             if (cameraRig) cameraRig.Bind(ActiveDrone.transform);
             if (targeting) targeting.viewCamera = cameraRig ? cameraRig.GetComponent<Camera>() : Camera.main;
+
+            var assist = ActiveDrone.GetComponent<DiveAssist>();
+            if (assist == null) assist = ActiveDrone.gameObject.AddComponent<DiveAssist>();
+            assist.targeting = targeting;
 
             // Warhead detonation (rams a target / ground): warhead destroys itself.
             var warhead = ActiveDrone.GetComponent<DroneWarhead>();
@@ -135,7 +167,7 @@ namespace Ironfield.Mission
 
             if (DronesLeft <= 0 && VehiclesLeft > 0)
             {
-                State = MissionState.Lost;
+                EndMission(MissionState.Lost);
                 return;
             }
             StartCoroutine(RespawnAfterDelay());

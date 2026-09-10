@@ -24,6 +24,6 @@ MonoBehaviour:
   selfLevel: 0.35
   gravity: 9.81
   climbAccel: 12
-  maxHealth: 30
+  maxHealth: 55
   warheadDamage: 650
   warheadRadius: 5.5

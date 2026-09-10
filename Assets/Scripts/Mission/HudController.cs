@@ -98,8 +98,14 @@ namespace Ironfield.Mission
 
             // --- top-left status --------------------------------------
             GUI.Label(new Rect(24, 18, 520, 24),
-                $"COLUMN   {mission.VehiclesTotal - mission.VehiclesLeft}/{mission.VehiclesTotal} destroyed", _label);
+                $"COLUMN   {mission.Killed}/{mission.VehiclesTotal} destroyed", _label);
             GUI.Label(new Rect(24, 42, 520, 24), $"DRONES   {mission.DronesLeft}", _label);
+            if (mission.Escaped > 0)
+            {
+                var warn = new GUIStyle(_label);
+                warn.normal.textColor = new Color(1f, 0.5f, 0.25f);
+                GUI.Label(new Rect(24, 66, 520, 24), $"BROKE THROUGH   {mission.Escaped}", warn);
+            }
 
             var drone = mission.ActiveDrone;
             if (drone != null)
@@ -115,9 +121,9 @@ namespace Ironfield.Mission
                 var col = _center.normal.textColor; col.a = a;
                 var s = new GUIStyle(_center); s.normal.textColor = col;
                 GUI.Label(new Rect(0, h * 0.16f, w, 26),
-                    "RECON  ·  enemy armour column on the road", s);
+                    "RECON  ·  enemy armour column advancing up the road", s);
                 GUI.Label(new Rect(0, h * 0.16f + 26, w, 22),
-                    "Fly in and destroy all vehicles before your drones run out", s);
+                    "Destroy every vehicle before they break through — mind the return fire", s);
             }
 
             // --- target markers -------------------------------------
@@ -301,19 +307,29 @@ namespace Ironfield.Mission
 
         void DrawEndPanel(float w, float h)
         {
-            GUI.color = new Color(0f, 0f, 0f, 0.6f);
+            GUI.color = new Color(0f, 0f, 0f, 0.62f);
             GUI.DrawTexture(new Rect(0, 0, w, h), _px);
             GUI.color = Color.white;
 
             bool won = mission.State == MissionState.Won;
-            GUI.Label(new Rect(0, h * 0.34f, w, 44), won ? "COLUMN DESTROYED" : "DRONES EXPENDED", _big);
-            GUI.Label(new Rect(0, h * 0.34f + 48, w, 24),
-                won ? "Every vehicle on the road knocked out."
-                    : $"{mission.VehiclesLeft} vehicle(s) broke through.", _center);
+            GUI.Label(new Rect(0, h * 0.24f, w, 44), won ? "COLUMN DESTROYED" : "MISSION FAILED", _big);
 
-            if (GUI.Button(new Rect(w * 0.5f - 112, h * 0.52f, 104, 40), "Restart"))
+            int t = Mathf.RoundToInt(mission.TimeActive);
+            string[] lines =
+            {
+                $"Destroyed      {mission.Killed} / {mission.VehiclesTotal}",
+                $"Broke through  {mission.Escaped}",
+                $"Drones used    {mission.droneStock - mission.DronesLeft} / {mission.droneStock}",
+                $"Time           {t / 60:0}:{t % 60:00}",
+                "",
+                $"SCORE   {mission.Score}      GRADE   {mission.Grade}",
+            };
+            for (int i = 0; i < lines.Length; i++)
+                GUI.Label(new Rect(0, h * 0.24f + 58 + i * 24, w, 22), lines[i], _center);
+
+            if (GUI.Button(new Rect(w * 0.5f - 112, h * 0.62f, 104, 40), "Restart"))
                 mission.Restart();
-            if (GUI.Button(new Rect(w * 0.5f + 8, h * 0.52f, 104, 40), "Quit"))
+            if (GUI.Button(new Rect(w * 0.5f + 8, h * 0.62f, 104, 40), "Quit"))
                 mission.Quit();
         }
     }

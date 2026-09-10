@@ -397,7 +397,7 @@ namespace Ironfield.EditorTools
             t.gravity = 9.81f;
             t.linearDrag = 1.7f;
             t.angularDamp = 7f;
-            t.maxHealth = 30f;
+            t.maxHealth = 55f;               // survive a burst or two of return fire
             t.warheadDamage = 650f;
             t.warheadRadius = 5.5f;
             EditorUtility.SetDirty(t);
@@ -649,10 +649,17 @@ namespace Ironfield.EditorTools
             if (cls != VehicleClass.Truck)
             {
                 var turret = root.AddComponent<VehicleTurret>();
-                turret.enabled = false; // opt-in return fire
-                turret.range = cls == VehicleClass.Tank ? 200f : 160f;
-                turret.damagePerHit = cls == VehicleClass.Tank ? 8f : 5f;
-                turret.muzzle = aim.transform;
+                turret.enabled = true;                       // convoy shoots back
+                turret.range = cls == VehicleClass.Tank ? 190f : 150f;
+                turret.fireInterval = cls == VehicleClass.Tank ? 0.16f : 0.11f;
+                turret.burst = cls == VehicleClass.Tank ? 3 : 5;
+                turret.burstPause = cls == VehicleClass.Tank ? 1.7f : 1.3f;
+                turret.spreadDeg = cls == VehicleClass.Tank ? 3.2f : 2.4f;
+                turret.damagePerHit = cls == VehicleClass.Tank ? 7f : 4.5f;
+                var muz = new GameObject("Muzzle");
+                muz.transform.SetParent(root.transform, false);
+                muz.transform.localPosition = new Vector3(0f, height * 0.7f, length * 0.25f);
+                turret.muzzle = muz.transform;
                 turret.tracerPrefab = MakeTracerPrefab();
             }
 
@@ -1309,6 +1316,16 @@ namespace Ironfield.EditorTools
                 t.transform.localScale = new Vector3(s, s * (0.85f + (float)rng.NextDouble() * 0.4f), s);
                 t.transform.rotation = Quaternion.Euler(0, (float)rng.NextDouble() * 360f, 0);
                 SetLayerRecursive(t, GameLayers.Environment);
+                if (src != bush)
+                {
+                    var rr2 = t.GetComponentsInChildren<Renderer>();
+                    Bounds tb = rr2[0].bounds;
+                    for (int k = 1; k < rr2.Length; k++) tb.Encapsulate(rr2[k].bounds);
+                    var cc = t.AddComponent<CapsuleCollider>();
+                    cc.radius = 0.5f;
+                    cc.height = Mathf.Max(2f, tb.size.y / Mathf.Max(0.01f, t.transform.lossyScale.y));
+                    cc.center = new Vector3(0f, cc.height * 0.5f, 0f);
+                }
                 treeN++;
             }
 

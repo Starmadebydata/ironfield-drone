@@ -54,7 +54,17 @@ namespace Ironfield.Vehicles
 
             if (toTgt.magnitude <= waypointTolerance)
             {
-                _wp = (_wp + 1) % waypoints.Length;
+                if (_wp >= waypoints.Length - 1)
+                {
+                    // reached the far end of the road — broke through
+                    _dead = true;
+                    enabled = false;
+                    var veh = GetComponent<Vehicle>();
+                    if (veh != null) VehicleRegistry.MarkEscaped(veh);
+                    Destroy(gameObject);
+                    return;
+                }
+                _wp++;
                 return;
             }
 

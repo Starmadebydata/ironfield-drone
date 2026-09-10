@@ -20,6 +20,9 @@ namespace Ironfield.Tests
             yield return SceneManager.LoadSceneAsync("Mission01", LoadSceneMode.Single);
             // let MissionManager.Begin() run (it waits one frame)
             for (int i = 0; i < 5; i++) yield return null;
+            // silence return fire so flight assertions stay deterministic
+            foreach (var tt in Object.FindObjectsByType<Ironfield.Vehicles.VehicleTurret>(FindObjectsSortMode.None))
+                tt.enabled = false;
 
             var mgr = Object.FindAnyObjectByType<MissionManager>();
             Assert.IsNotNull(mgr, "MissionManager missing from Mission01");
@@ -51,6 +54,8 @@ namespace Ironfield.Tests
         {
             yield return SceneManager.LoadSceneAsync("Mission01", LoadSceneMode.Single);
             for (int i = 0; i < 5; i++) yield return null;
+            foreach (var tt in Object.FindObjectsByType<Ironfield.Vehicles.VehicleTurret>(FindObjectsSortMode.None))
+                tt.enabled = false;
 
             var targeting = Object.FindAnyObjectByType<Ironfield.Targeting.TargetingSystem>();
             Assert.IsNotNull(targeting);

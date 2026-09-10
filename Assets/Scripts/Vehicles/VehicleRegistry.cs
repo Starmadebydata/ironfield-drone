@@ -10,9 +10,12 @@ namespace Ironfield.Vehicles
 
         public static int TotalRegistered { get; private set; }
         public static int DestroyedCount { get; private set; }
+        public static int EscapedCount { get; private set; }
 
         /// <summary>Fired once per vehicle when it is knocked out.</summary>
         public static event System.Action<Vehicle> AnyDestroyed;
+        /// <summary>Fired once per vehicle when it drives off the far end of the road.</summary>
+        public static event System.Action<Vehicle> AnyEscaped;
 
         [UnityEngine.RuntimeInitializeOnLoadMethod(
             UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -21,13 +24,16 @@ namespace Ironfield.Vehicles
             _alive.Clear();
             TotalRegistered = 0;
             DestroyedCount = 0;
+            EscapedCount = 0;
             AnyDestroyed = null;
+            AnyEscaped = null;
         }
 
         public static void ResetCounters()
         {
             TotalRegistered = _alive.Count;
             DestroyedCount = 0;
+            EscapedCount = 0;
         }
 
         internal static void Register(Vehicle v)
@@ -45,6 +51,15 @@ namespace Ironfield.Vehicles
             {
                 DestroyedCount++;
                 AnyDestroyed?.Invoke(v);
+            }
+        }
+
+        internal static void MarkEscaped(Vehicle v)
+        {
+            if (_alive.Remove(v))
+            {
+                EscapedCount++;
+                AnyEscaped?.Invoke(v);
             }
         }
 
