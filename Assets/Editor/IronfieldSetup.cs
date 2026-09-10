@@ -164,6 +164,19 @@ namespace Ironfield.EditorTools
                 Vector3 close = first.position + first.right * 14f + Vector3.up * 5f - first.forward * 4f;
                 Shot(cam, close, first.position + Vector3.up * 1.5f, "Ironfield_smoke_close.png");
             }
+
+            // drone shot: spawn one at the launch point and frame it chase-cam style
+            var dronePf = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Drone.prefab");
+            if (dronePf != null && launch != null)
+            {
+                var d = (GameObject)PrefabUtility.InstantiatePrefab(dronePf);
+                d.transform.position = launch.transform.position;
+                d.transform.rotation = launch.transform.rotation;
+                Vector3 back = -launch.transform.forward;
+                Vector3 eye3 = d.transform.position + back * 9f + Vector3.up * 3f;
+                Shot(cam, eye3, d.transform.position + d.transform.forward * 4f, "Ironfield_smoke_drone.png");
+                Object.DestroyImmediate(d);
+            }
             _ = scene;
         }
 
@@ -752,7 +765,8 @@ namespace Ironfield.EditorTools
                 float wGrass = Mathf.Clamp01(0.62f - macro * 1.7f) * (1f - slope01);
                 float wDry = Mathf.Clamp01(0.5f + macro * 1.7f) * (1f - slope01);
                 float wDirt = Mathf.Clamp01((meso - 0.62f) * 4f) * (1f - slope01) * 0.7f;
-                float wRoad = RoadMask(new Vector3(wx, 0, wz), waypoints, 6f, 3.5f) * 9f;
+                // thin shoulder only — the crisp road surface is the ribbon mesh
+                float wRoad = RoadMask(new Vector3(wx, 0, wz), waypoints, 6.5f, 2.5f) * 4f;
                 float wRock = slope01 * 3.5f + Mathf.Clamp01(hz01 - 0.62f) * 2f;
 
                 float wBurn = 0f;
@@ -892,7 +906,13 @@ namespace Ironfield.EditorTools
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = go.AddComponent<MeshRenderer>();
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            mr.sharedMaterial = MakeUnlit(new Color(0.29f, 0.26f, 0.23f), "road_ribbon");
+            var roadMat = new Material(Shader.Find("Standard")) { name = "RoadRibbon" };
+            roadMat.mainTexture = MakeGroundTex("roadsurf", new Color(0.22f, 0.20f, 0.17f),
+                                                new Color(0.36f, 0.33f, 0.29f), 0.10f);
+            roadMat.mainTextureScale = new Vector2(2f, 1f);   // v already runs in metres*0.09
+            roadMat.SetFloat("_Glossiness", 0.05f);
+            AssetDatabase.CreateAsset(roadMat, SettingsDir + "/RoadRibbon.mat");
+            mr.sharedMaterial = roadMat;
             SetLayerRecursive(go, GameLayers.Environment);
         }
 
