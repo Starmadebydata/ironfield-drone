@@ -14,16 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Ironfield.Drone.DroneTuning
   thrustAccel: 22
   boostMultiplier: 2.1
-  maxSpeed: 32
-  boostMaxSpeed: 55
-  linearDrag: 1.1
+  maxSpeed: 22
+  boostMaxSpeed: 40
+  linearDrag: 1.7
   pitchRate: 160
   rollRate: 220
-  yawRate: 120
-  angularDamp: 6
+  yawRate: 110
+  angularDamp: 7
   selfLevel: 0.35
   gravity: 9.81
-  climbAccel: 18
+  climbAccel: 12
   maxHealth: 30
   warheadDamage: 650
   warheadRadius: 5.5

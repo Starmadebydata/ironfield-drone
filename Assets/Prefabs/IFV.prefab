@@ -47,7 +47,7 @@ GameObject:
   - component: {fileID: 6174483356777331713}
   - component: {fileID: 1092552560657229402}
   - component: {fileID: 4058041413273033237}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: IFV
   m_TagString: Vehicle
   m_Icon: {fileID: 0}

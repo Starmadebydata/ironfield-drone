@@ -22,3 +22,4 @@ sysinfo.txt
 *.app
 Ironfield_smoke*.png
 *.png.import
+__pycache__/

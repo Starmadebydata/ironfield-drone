@@ -78,8 +78,8 @@ namespace Ironfield.Mission
 
             _currentDroneSpent = false;
             ActiveDrone = Instantiate(dronePrefab, pos, rot);
-            ActiveDrone.gameObject.tag = GameTags.Drone;
-            ActiveDrone.gameObject.layer = GameLayers.Drone;
+            int droneLayer = GameLayers.Drone;
+            if (droneLayer >= 0) SetLayer(ActiveDrone.gameObject, droneLayer);
 
             if (cameraRig) cameraRig.Bind(ActiveDrone.transform);
             if (targeting) targeting.viewCamera = cameraRig ? cameraRig.GetComponent<Camera>() : Camera.main;
@@ -124,6 +124,12 @@ namespace Ironfield.Mission
         {
             yield return new WaitForSeconds(respawnDelay);
             if (State == MissionState.Active) SpawnDrone();
+        }
+
+        static void SetLayer(GameObject go, int layer)
+        {
+            go.layer = layer;
+            foreach (Transform c in go.transform) SetLayer(c.gameObject, layer);
         }
 
         public void Restart() => SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);

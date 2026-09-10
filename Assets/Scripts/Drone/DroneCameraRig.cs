@@ -12,10 +12,10 @@ namespace Ironfield.Drone
     public class DroneCameraRig : MonoBehaviour
     {
         public Transform target;                 // the drone
-        public Vector3 localOffset = new Vector3(0f, 2.2f, -6.5f);
-        public float positionLerp = 8f;
-        public float rotationLerp = 10f;
-        public float lookAhead = 6f;
+        public Vector3 localOffset = new Vector3(0f, 2.6f, -7.5f);
+        public float positionLerp = 13f;
+        public float rotationLerp = 11f;
+        public float lookAhead = 3f;
 
         [Header("FOV")]
         public float baseFov = 62f;
@@ -52,12 +52,14 @@ namespace Ironfield.Drone
             if (!target) return;
             float dt = Time.deltaTime;
 
-            Vector3 desiredPos = target.TransformPoint(localOffset);
+            // yaw-only basis so the camera doesn't swing when the drone banks
+            Quaternion flat = Quaternion.Euler(0f, target.eulerAngles.y, 0f);
+            Vector3 desiredPos = target.position + flat * localOffset;
             transform.position = Vector3.Lerp(transform.position, desiredPos,
                 1f - Mathf.Exp(-positionLerp * dt));
 
             Vector3 vel = _targetRb ? _targetRb.linearVelocity : Vector3.zero;
-            Vector3 lookAt = target.position + target.forward * 2f + vel.normalized * lookAhead;
+            Vector3 lookAt = target.position + (flat * Vector3.forward) * 4f + vel.normalized * lookAhead;
             Quaternion desiredRot = Quaternion.LookRotation(lookAt - transform.position, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, desiredRot,
                 1f - Mathf.Exp(-rotationLerp * dt));
@@ -81,8 +83,9 @@ namespace Ironfield.Drone
 
         void SnapToTarget()
         {
-            transform.position = target.TransformPoint(localOffset);
-            transform.rotation = Quaternion.LookRotation(target.forward, Vector3.up);
+            Quaternion flat = Quaternion.Euler(0f, target.eulerAngles.y, 0f);
+            transform.position = target.position + flat * localOffset;
+            transform.rotation = Quaternion.LookRotation(flat * Vector3.forward, Vector3.up);
         }
     }
 }

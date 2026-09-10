@@ -37,9 +37,58 @@ namespace Ironfield.EditorTools
         const string ScenesDir = "Assets/Scenes";
         const string ScenePath = ScenesDir + "/Mission01.unity";
 
+        static readonly string[] WantTags = { "Drone", "Vehicle", "LaunchPoint" };
+        // index -> name; 6..9 are the first free user layer slots
+        static readonly (int idx, string name)[] WantLayers =
+        {
+            (6, "Drone"), (7, "Vehicle"), (8, "Environment"), (9, "Projectile"),
+        };
+
+        [MenuItem("Ironfield/0. Ensure Tags & Layers")]
+        public static void EnsureTagsAndLayers()
+        {
+            var asset = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset");
+            if (asset == null || asset.Length == 0)
+            {
+                Debug.LogError("[Ironfield] Could not load TagManager.asset");
+                return;
+            }
+            var so = new SerializedObject(asset[0]);
+
+            var tags = so.FindProperty("tags");
+            foreach (var t in WantTags)
+            {
+                bool has = false;
+                for (int i = 0; i < tags.arraySize; i++)
+                    if (tags.GetArrayElementAtIndex(i).stringValue == t) { has = true; break; }
+                if (!has)
+                {
+                    tags.arraySize++;
+                    tags.GetArrayElementAtIndex(tags.arraySize - 1).stringValue = t;
+                }
+            }
+
+            var layers = so.FindProperty("layers");
+            foreach (var (idx, name) in WantLayers)
+            {
+                if (idx >= layers.arraySize) continue;
+                var slot = layers.GetArrayElementAtIndex(idx);
+                if (string.IsNullOrEmpty(slot.stringValue) || slot.stringValue == name)
+                    slot.stringValue = name;
+                else
+                    Debug.LogWarning($"[Ironfield] Layer {idx} already '{slot.stringValue}', wanted '{name}'.");
+            }
+
+            so.ApplyModifiedPropertiesWithoutUndo();
+            AssetDatabase.SaveAssets();
+            Debug.Log("[Ironfield] Tags & layers ensured.");
+        }
+
         [MenuItem("Ironfield/2. Build Game (prefabs + scene)")]
         public static void Run()
         {
+            EnsureTagsAndLayers();
+
             Directory.CreateDirectory(PrefabDir);
             Directory.CreateDirectory(SettingsDir);
             Directory.CreateDirectory(ScenesDir);
@@ -183,6 +232,18 @@ namespace Ironfield.EditorTools
                 t = ScriptableObject.CreateInstance<DroneTuning>();
                 AssetDatabase.CreateAsset(t, p);
             }
+            // keep the flight feel in code so a rebuild re-applies it
+            t.maxSpeed = 22f;
+            t.boostMaxSpeed = 40f;
+            t.yawRate = 110f;
+            t.climbAccel = 12f;
+            t.gravity = 9.81f;
+            t.linearDrag = 1.7f;
+            t.angularDamp = 7f;
+            t.maxHealth = 30f;
+            t.warheadDamage = 650f;
+            t.warheadRadius = 5.5f;
+            EditorUtility.SetDirty(t);
             return t;
         }
 

@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5589913075047318660}
   - component: {fileID: 5865613292800503298}
-  - component: {fileID: 3749343378116448273}
+  - component: {fileID: 2351707819755695551}
   m_Layer: 0
   m_Name: FlashLight
   m_TagString: Untagged
@@ -98,7 +98,7 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
---- !u!114 &3749343378116448273
+--- !u!114 &2351707819755695551
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -107,7 +107,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 1386886946668197470}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ce5258a7bab1b4b21b5ce962bd548e58, type: 3}
+  m_Script: {fileID: 11500000, guid: 5ed06185376d144478065730b472140c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Ironfield.Runtime::Ironfield.Fx.FlashFade
   speed: 5

@@ -47,7 +47,7 @@ GameObject:
   - component: {fileID: 801811245130733388}
   - component: {fileID: 1228847442550012262}
   - component: {fileID: 1090146278568659164}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Tank
   m_TagString: Vehicle
   m_Icon: {fileID: 0}

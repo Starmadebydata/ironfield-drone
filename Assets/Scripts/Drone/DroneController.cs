@@ -38,12 +38,14 @@ namespace Ironfield.Drone
             _rb.angularDamping = 0f;
             _rb.interpolation = RigidbodyInterpolation.Interpolate;
             _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            _rb.freezeRotation = true;              // rotation is driven by MoveRotation
             _health = GetComponent<HealthComponent>();
             if (tuning == null)
             {
                 Debug.LogWarning("[Drone] No DroneTuning assigned; using defaults.", this);
                 tuning = ScriptableObject.CreateInstance<DroneTuning>();
             }
+            _heading = transform.eulerAngles.y;
         }
 
         void Update()
@@ -61,48 +63,44 @@ namespace Ironfield.Drone
                     if (p) p.Rotate(Vector3.up, spin * Time.deltaTime, Space.Self);
         }
 
+        // smoothed visual attitude
+        float _bank, _pitchVis, _heading;
+
         void FixedUpdate()
         {
             float dt = Time.fixedDeltaTime;
-            Boosting = _in.Boost && _in.Throttle > -0.2f;
+            Boosting = _in.Boost;
 
-            // --- rotation --------------------------------------------------
-            Vector3 torque = new Vector3(
-                _in.Pitch * tuning.pitchRate,
-                _in.Yaw * tuning.yawRate,
-                -_in.Roll * tuning.rollRate) * Mathf.Deg2Rad;
+            // --- heading (yaw) ------------------------------------------
+            _heading += _in.Yaw * tuning.yawRate * dt;
+            Quaternion headingRot = Quaternion.Euler(0f, _heading, 0f);
+            Vector3 fwd = headingRot * Vector3.forward;
+            Vector3 right = headingRot * Vector3.right;
 
-            _rb.angularVelocity = Vector3.Lerp(
-                _rb.angularVelocity,
-                transform.TransformDirection(torque),
-                1f - Mathf.Exp(-tuning.angularDamp * dt));
-
-            // gentle auto-level of roll & pitch when the stick is near centre
-            if (tuning.selfLevel > 0f && Mathf.Abs(_in.Pitch) < 0.15f && Mathf.Abs(_in.Roll) < 0.15f)
-            {
-                Quaternion flat = Quaternion.Euler(0f, transform.eulerAngles.y, 0f);
-                _rb.MoveRotation(Quaternion.Slerp(_rb.rotation, flat,
-                    tuning.selfLevel * dt * 2.5f));
-            }
-
-            // --- translation --------------------------------------------
+            // --- target horizontal velocity ---------------------------
             float maxSpd = Boosting ? tuning.boostMaxSpeed : tuning.maxSpeed;
-            float accel = tuning.thrustAccel * (Boosting ? tuning.boostMultiplier : 1f);
+            Vector3 wantHoriz = fwd * (_in.Throttle * maxSpd)
+                              + right * (_in.Roll * maxSpd * 0.45f);
 
+            // --- vertical: pitch stick drives climb rate, mild sink ----
+            float wantVert = _in.Pitch * tuning.climbAccel
+                             - (Mathf.Approximately(_in.Pitch, 0f) ? tuning.gravity * 0.25f : 0f);
+
+            Vector3 want = new Vector3(wantHoriz.x, wantVert, wantHoriz.z);
             Vector3 v = _rb.linearVelocity;
-            // forward push follows where the nose points
-            v += transform.forward * (accel * Mathf.Max(0f, -_in.Pitch * 0.5f + 0.5f) * dt) * 0.35f;
-            // climb / descend from throttle axis, and fight gravity
-            v += Vector3.up * ((_in.Throttle * tuning.climbAccel) - tuning.gravity + tuning.gravity * Mathf.Clamp01(_in.Throttle + 0.5f)) * dt;
-            // strafe a little with roll for responsiveness
-            v += transform.right * (_in.Roll * accel * 0.15f * dt);
-
-            // drag
-            v -= v * (tuning.linearDrag * dt);
-
-            if (v.magnitude > maxSpd) v = v.normalized * maxSpd;
+            float responsiveness = 1f - Mathf.Exp(-tuning.linearDrag * 3f * dt);
+            v = Vector3.Lerp(v, want, responsiveness);
+            if (v.magnitude > tuning.boostMaxSpeed) v = v.normalized * tuning.boostMaxSpeed;
             _rb.linearVelocity = v;
-            _speed = v.magnitude;
+            _speed = new Vector2(v.x, v.z).magnitude;
+
+            // --- visual attitude: bank into turns / roll, pitch to climb
+            float targetBank = -_in.Roll * 28f - _in.Yaw * 14f;
+            float targetPitch = -_in.Pitch * 22f + _in.Throttle * 8f;
+            float k = 1f - Mathf.Exp(-tuning.angularDamp * dt);
+            _bank = Mathf.Lerp(_bank, targetBank, k);
+            _pitchVis = Mathf.Lerp(_pitchVis, targetPitch, k);
+            _rb.MoveRotation(Quaternion.Euler(_pitchVis, _heading, _bank));
         }
 
         void OnCollisionEnter(Collision c)

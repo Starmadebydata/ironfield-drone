@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1801837964441825978}
   - component: {fileID: 2061738326970631955}
-  - component: {fileID: 7768237718478345472}
+  - component: {fileID: 3530650371756206753}
   m_Layer: 0
   m_Name: MotorAudio
   m_TagString: Untagged
@@ -130,7 +130,7 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!114 &7768237718478345472
+--- !u!114 &3530650371756206753
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -139,7 +139,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 788804114724334087}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
+  m_Script: {fileID: 11500000, guid: b27748731c5484b10ae9a5787c829e46, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Ironfield.Runtime::Ironfield.Fx.MotorPitch
   speedForMaxPitch: 45
@@ -191,13 +191,37 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: -2884217016039450408, guid: cd399e68d81274528969e2acc2e614a8, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: -2581683505621241594, guid: cd399e68d81274528969e2acc2e614a8, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: -1078076696937018295, guid: cd399e68d81274528969e2acc2e614a8, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: cd399e68d81274528969e2acc2e614a8, type: 3}
       propertyPath: m_Name
       value: Drone
       objectReference: {fileID: 0}
     - target: {fileID: 919132149155446097, guid: cd399e68d81274528969e2acc2e614a8, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 919132149155446097, guid: cd399e68d81274528969e2acc2e614a8, type: 3}
       propertyPath: m_TagString
       value: Drone
+      objectReference: {fileID: 0}
+    - target: {fileID: 3231391826733076769, guid: cd399e68d81274528969e2acc2e614a8, type: 3}
+      propertyPath: m_Layer
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 5401601035989469984, guid: cd399e68d81274528969e2acc2e614a8, type: 3}
+      propertyPath: m_Layer
+      value: 6
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
