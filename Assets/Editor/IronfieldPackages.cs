@@ -24,6 +24,8 @@ namespace Ironfield.EditorTools
             "com.unity.cinemachine",
             "com.unity.ugui",
             "com.unity.test-framework",
+            // external .glb assets are converted to .fbx via Blender (tools/blender/convert_gltf.py)
+            // so no glTF import package is needed.
         };
 
         [MenuItem("Ironfield/1. Add Packages")]

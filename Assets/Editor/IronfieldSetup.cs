@@ -27,6 +27,7 @@ namespace Ironfield.EditorTools
     public static class IronfieldSetup
     {
         const string ArtDrone = "Assets/Art/Drone/Drone.fbx";
+        const string ArtDroneExt = "Assets/Art/External/Drone_FPV.fbx";   // CC-BY, NateGazzard (from .glb)
         const string ArtTank = "Assets/Art/Vehicles/Tank.fbx";
         const string ArtIFV = "Assets/Art/Vehicles/IFV.fbx";
         const string ArtTruck = "Assets/Art/Vehicles/Truck.fbx";
@@ -94,6 +95,7 @@ namespace Ironfield.EditorTools
             Directory.CreateDirectory(ScenesDir);
 
             ConfigureModelImport(ArtDrone, 1f);
+            ConfigureModelImport(ArtDroneExt, 1f);
             ConfigureModelImport(ArtTank, 1f);
             ConfigureModelImport(ArtIFV, 1f);
             ConfigureModelImport(ArtTruck, 1f);
@@ -301,11 +303,13 @@ namespace Ironfield.EditorTools
         {
             var explosion = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Explosion.prefab")
                 ?.GetComponent<Explosion>();
-            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ArtDrone);
+
+            // Prefer the real CC-BY FPV model; fall back to the Blender blockout.
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ArtDroneExt)
+                        ?? AssetDatabase.LoadAssetAtPath<GameObject>(ArtDrone);
             GameObject root = model != null
                 ? (GameObject)PrefabUtility.InstantiatePrefab(model)
                 : GameObject.CreatePrimitive(PrimitiveType.Cube);
-            // unpack so the imported children are plain objects we can reparent
             if (model != null)
                 PrefabUtility.UnpackPrefabInstance(root, PrefabUnpackMode.Completely,
                     InteractionMode.AutomatedAction);
@@ -313,18 +317,15 @@ namespace Ironfield.EditorTools
             root.tag = GameTags.Drone;
             SetLayerRecursive(root, GameLayers.Drone);
 
-            // The real blockout is ~0.35 m — a speck from the chase cam. Move the
-            // whole imported visual under a scaled child so it reads; the root
-            // collider stays a sane ~1.8 m box.
+            // Move the imported visual under a scaled child so it reads from the
+            // chase cam; the root collider stays a sane box.
             var existingKids = new List<Transform>();
             foreach (Transform child in root.transform) existingKids.Add(child);
             var visualRoot = new GameObject("Visual");
             visualRoot.transform.SetParent(root.transform, false);
             foreach (var k in existingKids) k.SetParent(visualRoot.transform, true);
 
-            // Scale the imported visual to an explicit motor-to-motor size,
-            // measured from renderer bounds so it's independent of the FBX scale.
-            const float targetSpan = 3.8f;   // metres, prop tip to prop tip
+            const float targetSpan = 3.0f;   // metres, motor to motor
             var mfs = visualRoot.GetComponentsInChildren<MeshFilter>();
             float span = 0f;
             foreach (var mf in mfs)
@@ -335,32 +336,78 @@ namespace Ironfield.EditorTools
                 }
             float mult = span > 0.001f ? targetSpan / span : 10f;
             visualRoot.transform.localScale = Vector3.one * mult;
-            Debug.Log($"[Ironfield] drone visual span={span:0.00}m  ->  scale x{mult:0.0}  (meshes={mfs.Length})");
+            Debug.Log($"[Ironfield] drone visual span={span:0.00}m  ->  scale x{mult:0.00}  (meshes={mfs.Length})");
 
-            // a small nav strobe so the drone is trackable against the ground
+            // --- retint: the imported palette texture doesn't survive the
+            //     glb->fbx hop, so give the airframe a proper dark-carbon look.
+            var carbon = MakeStandard("drone_carbon", new Color(0.055f, 0.055f, 0.065f), 0.4f, 0.15f);
+            var gunmetal = MakeStandard("drone_gunmetal", new Color(0.16f, 0.16f, 0.18f), 0.55f, 0.6f);
+            foreach (var r in visualRoot.GetComponentsInChildren<MeshRenderer>())
+            {
+                string rn = r.name.ToLowerInvariant();
+                r.sharedMaterial = (rn.Contains("rotor") || rn.Contains("prop")) ? gunmetal : carbon;
+            }
+
+            // --- spin pivots for the rotors --------------------------------
+            var props = new List<Transform>();
+            foreach (var tr in visualRoot.GetComponentsInChildren<Transform>())
+            {
+                string n = tr.name.ToLowerInvariant();
+                if (!(n.Contains("rotor") || n.Contains("prop") || n.Contains("blade") || n.Contains("fan")))
+                    continue;
+                var mr = tr.GetComponent<Renderer>();
+                if (mr == null) continue;
+                var pivot = new GameObject(tr.name + "_Spin");
+                pivot.transform.SetParent(tr.parent, false);
+                pivot.transform.position = new Vector3(mr.bounds.center.x, tr.position.y, mr.bounds.center.z);
+                pivot.transform.rotation = tr.rotation;
+                tr.SetParent(pivot.transform, true);
+                props.Add(pivot.transform);
+            }
+
+            // --- underslung warhead (visual only) ----------------------
+            {
+                var whVis = new GameObject("Warhead");
+                whVis.transform.SetParent(visualRoot.transform, true);
+                var b = visualRoot.GetComponentInChildren<Renderer>().bounds;
+                whVis.transform.position = new Vector3(b.center.x, b.min.y - 0.05f, b.center.z);
+                var body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                body.name = "WH_Body";
+                body.transform.SetParent(whVis.transform, false);
+                body.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                body.transform.localScale = new Vector3(0.18f, 0.28f, 0.18f);
+                Object.DestroyImmediate(body.GetComponent<Collider>());
+                body.GetComponent<MeshRenderer>().sharedMaterial = MakeUnlit(new Color(0.14f, 0.14f, 0.15f), "wh_body");
+                var tip = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                tip.name = "WH_Tip";
+                tip.transform.SetParent(whVis.transform, false);
+                tip.transform.localPosition = new Vector3(0f, 0f, 0.28f);
+                tip.transform.localScale = new Vector3(0.19f, 0.19f, 0.24f);
+                Object.DestroyImmediate(tip.GetComponent<Collider>());
+                tip.GetComponent<MeshRenderer>().sharedMaterial = MakeUnlit(new Color(0.75f, 0.22f, 0.10f), "wh_tip");
+                SetLayerRecursive(whVis, GameLayers.Drone);
+            }
+
+            // a small nav strobe so the drone reads against the ground
             var strobe = new GameObject("NavLight");
             strobe.transform.SetParent(visualRoot.transform, false);
-            strobe.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+            strobe.transform.localPosition = Vector3.zero;
             var sl = strobe.AddComponent<Light>();
-            sl.type = LightType.Point; sl.color = new Color(1f, 0.3f, 0.2f);
-            sl.range = 9f; sl.intensity = 3f;
+            sl.type = LightType.Point; sl.color = new Color(1f, 0.25f, 0.15f);
+            sl.range = 10f; sl.intensity = 2.4f;
 
             var rb = root.AddComponent<Rigidbody>();
             rb.mass = 1.2f; rb.useGravity = false;
 
             var col = root.AddComponent<BoxCollider>();
-            col.center = new Vector3(0f, 0.5f, 0f);
-            col.size = new Vector3(3.4f, 1.3f, 3.4f);
+            col.center = new Vector3(0f, 0.2f, 0f);
+            col.size = new Vector3(2.8f, 1.0f, 2.8f);
 
             var health = root.AddComponent<HealthComponent>();
             health.maxHealth = tuning.maxHealth; health.armor = 0f;
 
             var ctrl = root.AddComponent<DroneController>();
             ctrl.tuning = tuning;
-
-            var props = new List<Transform>();
-            foreach (var tr in root.GetComponentsInChildren<Transform>())
-                if (tr.name.StartsWith("Drone_Prop")) props.Add(tr);
             ctrl.propSpinners = props.ToArray();
 
             var wh = root.AddComponent<DroneWarhead>();
@@ -1291,6 +1338,22 @@ namespace Ironfield.EditorTools
             {
                 var shader = Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
                 existing = new Material(shader) { name = name, color = c };
+                AssetDatabase.CreateAsset(existing, p);
+            }
+            _matCache[name] = existing;
+            return existing;
+        }
+
+        static Material MakeStandard(string name, Color c, float smoothness, float metallic)
+        {
+            if (_matCache.TryGetValue(name, out var cached) && cached != null) return cached;
+            string p = SettingsDir + "/M_" + name + ".mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(p);
+            if (existing == null)
+            {
+                existing = new Material(Shader.Find("Standard")) { name = name, color = c };
+                existing.SetFloat("_Glossiness", smoothness);
+                existing.SetFloat("_Metallic", metallic);
                 AssetDatabase.CreateAsset(existing, p);
             }
             _matCache[name] = existing;
