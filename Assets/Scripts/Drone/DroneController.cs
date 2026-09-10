@@ -72,7 +72,7 @@ namespace Ironfield.Drone
             float spin = (_speed * 40f + 800f + (Boosting ? 1500f : 0f));
             if (propSpinners != null)
                 foreach (var p in propSpinners)
-                    if (p) p.Rotate(Vector3.up, spin * Time.deltaTime, Space.Self);
+                    if (p) p.Rotate(Vector3.up, spin * Time.deltaTime, Space.World);
         }
 
         // smoothed visual attitude

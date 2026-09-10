@@ -203,9 +203,16 @@ namespace Ironfield.EditorTools
                 var d = (GameObject)PrefabUtility.InstantiatePrefab(dronePf);
                 d.transform.position = launch.transform.position;
                 d.transform.rotation = launch.transform.rotation;
+                // spin the rotor pivots 30 deg so a still frame shows the sweep plane
+                var dc = d.GetComponent<Ironfield.Drone.DroneController>();
+                if (dc != null && dc.propSpinners != null)
+                    foreach (var p in dc.propSpinners) if (p) p.Rotate(Vector3.up, 30f, Space.World);
                 Vector3 back = -launch.transform.forward;
                 Vector3 eye3 = d.transform.position + back * 6f + Vector3.up * 2.3f;
                 Shot(cam, eye3, d.transform.position + d.transform.forward * 3f, "Ironfield_smoke_drone.png");
+                // top-down: a real quad shows 4 flat discs, a broken one shows 4 thin lines
+                Shot(cam, d.transform.position + Vector3.up * 7f, d.transform.position,
+                     "Ironfield_smoke_drone_top.png");
                 Object.DestroyImmediate(d);
             }
             _ = scene;
@@ -501,8 +508,11 @@ namespace Ironfield.EditorTools
                 if (mr == null) continue;
                 var pivot = new GameObject(tr.name + "_Spin");
                 pivot.transform.SetParent(tr.parent, false);
-                pivot.transform.position = new Vector3(mr.bounds.center.x, tr.position.y, mr.bounds.center.z);
-                pivot.transform.rotation = tr.rotation;
+                // spin axis is TRUE vertical through the rotor's centre — a real
+                // quad's rotors sweep the horizontal plane. World-aligned pivot
+                // so DroneController can just spin it about world up.
+                pivot.transform.position = new Vector3(mr.bounds.center.x, mr.bounds.center.y, mr.bounds.center.z);
+                pivot.transform.rotation = Quaternion.identity;
                 tr.SetParent(pivot.transform, true);
                 props.Add(pivot.transform);
             }
