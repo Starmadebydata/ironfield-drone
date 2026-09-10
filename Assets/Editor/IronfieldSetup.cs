@@ -296,12 +296,30 @@ namespace Ironfield.EditorTools
             root.tag = GameTags.Drone;
             SetLayerRecursive(root, GameLayers.Drone);
 
+            // The real blockout is ~0.35 m — a speck from the chase cam. Move the
+            // whole imported visual under a scaled child so it reads; the root
+            // collider stays a sane ~1.8 m box.
+            var existingKids = new List<Transform>();
+            foreach (Transform child in root.transform) existingKids.Add(child);
+            var visualRoot = new GameObject("Visual");
+            visualRoot.transform.SetParent(root.transform, false);
+            foreach (var k in existingKids) k.SetParent(visualRoot.transform, true);
+            visualRoot.transform.localScale = Vector3.one * 5f;
+
+            // a small nav strobe so the drone is trackable against the ground
+            var strobe = new GameObject("NavLight");
+            strobe.transform.SetParent(visualRoot.transform, false);
+            strobe.transform.localPosition = new Vector3(0f, 0.05f, 0f);
+            var sl = strobe.AddComponent<Light>();
+            sl.type = LightType.Point; sl.color = new Color(1f, 0.3f, 0.2f);
+            sl.range = 6f; sl.intensity = 2.5f;
+
             var rb = root.AddComponent<Rigidbody>();
             rb.mass = 1.2f; rb.useGravity = false;
 
             var col = root.AddComponent<BoxCollider>();
-            col.center = new Vector3(0f, 0.08f, 0f);
-            col.size = new Vector3(0.42f, 0.16f, 0.42f);
+            col.center = new Vector3(0f, 0.3f, 0f);
+            col.size = new Vector3(1.8f, 0.7f, 1.8f);
 
             var health = root.AddComponent<HealthComponent>();
             health.maxHealth = tuning.maxHealth; health.armor = 0f;
@@ -421,18 +439,21 @@ namespace Ironfield.EditorTools
             var sunGo = new GameObject("Sun");
             var sun = sunGo.AddComponent<Light>();
             sun.type = LightType.Directional;
-            sun.color = new Color(0.95f, 0.93f, 0.85f);
-            sun.intensity = 1.05f;
-            sunGo.transform.rotation = Quaternion.Euler(34f, 35f, 0f);
+            sun.color = new Color(1f, 0.96f, 0.86f);
+            sun.intensity = 1.25f;
+            sun.shadows = LightShadows.Soft;
+            sun.shadowStrength = 0.75f;
+            sunGo.transform.rotation = Quaternion.Euler(26f, 42f, 0f);   // low-ish afternoon
             RenderSettings.sun = sun;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
-            RenderSettings.ambientSkyColor = new Color(0.62f, 0.66f, 0.72f);
-            RenderSettings.ambientEquatorColor = new Color(0.48f, 0.47f, 0.42f);
-            RenderSettings.ambientGroundColor = new Color(0.24f, 0.22f, 0.18f);
+            RenderSettings.ambientSkyColor = new Color(0.60f, 0.68f, 0.80f);
+            RenderSettings.ambientEquatorColor = new Color(0.52f, 0.51f, 0.44f);
+            RenderSettings.ambientGroundColor = new Color(0.20f, 0.19f, 0.15f);
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = new Color(0.72f, 0.74f, 0.75f);
-            RenderSettings.fogDensity = 0.0055f;
+            RenderSettings.fogColor = new Color(0.78f, 0.82f, 0.86f);
+            RenderSettings.fogDensity = 0.0016f;                        // reveal mid-distance
+            QualitySettings.shadowDistance = 320f;
 
             // --- terrain ---------------------------------------------
             var terrain = BuildTerrain();
@@ -455,14 +476,18 @@ namespace Ironfield.EditorTools
                 waypoints.Add(wp);
             }
 
+            // paint ground + road + scatter vegetation now that the path is known
+            PaintTerrain(terrain, waypoints);
+            ScatterTrees(terrain, waypoints);
+
             // --- launch ridge --------------------------------------
             var launch = new GameObject("LaunchPoint");
             launch.tag = GameTags.LaunchPoint;
-            Vector3 lp = new(-230, 0, 120);
-            lp.y = SampleHeight(terrain, lp) + 34f;
+            Vector3 lp = new(-200, 0, 100);
+            lp.y = SampleHeight(terrain, lp) + 22f;
             launch.transform.position = lp;
             launch.transform.rotation = Quaternion.LookRotation(
-                new Vector3(60, -10, -40) - lp, Vector3.up);
+                new Vector3(0, -8, -30) - lp, Vector3.up);
 
             // --- camera --------------------------------------------
             var camGo = new GameObject("MainCamera");
@@ -549,12 +574,15 @@ namespace Ironfield.EditorTools
             for (int x = 0; x < res; x++)
             {
                 float nx = x / (float)res, ny = y / (float)res;
-                float e = Mathf.PerlinNoise(nx * 3f, ny * 3f) * 0.5f
-                          + Mathf.PerlinNoise(nx * 9f, ny * 9f) * 0.12f;
-                // flatten a corridor for the road
-                float corridor = Mathf.Abs(ny - (0.25f + nx * 0.35f));
-                e = Mathf.Lerp(0.18f, e, Mathf.Clamp01(corridor * 6f));
-                h[y, x] = e * 0.35f;
+                float e = Mathf.PerlinNoise(nx * 2.3f + 11f, ny * 2.3f + 7f) * 0.55f
+                          + Mathf.PerlinNoise(nx * 6f, ny * 6f) * 0.14f
+                          + Mathf.PerlinNoise(nx * 18f, ny * 18f) * 0.04f;
+                // gentle rise toward the far (east) edge, dip in the middle plain
+                e += (nx - 0.5f) * 0.10f;
+                // flatten a broad corridor for the road (diagonal SW->NE)
+                float corridor = Mathf.Abs(ny - (0.32f + nx * 0.30f));
+                e = Mathf.Lerp(0.30f, e, Mathf.Clamp01(corridor * 5f));
+                h[y, x] = Mathf.Clamp01(e) * 0.32f;
             }
             data.SetHeights(0, 0, h);
 
@@ -565,8 +593,170 @@ namespace Ironfield.EditorTools
             SetLayerRecursive(go, GameLayers.Environment);
             go.transform.position = new Vector3(-512, 0, -512);
             var t = go.GetComponent<Terrain>();
-            t.materialTemplate = MakeGroundMaterial();
-            return t;
+            t.drawInstanced = true;
+            return t;                     // textured later by PaintTerrain
+        }
+
+        // ------------------------------------------------------------------ //
+        // Terrain texturing + vegetation
+        // ------------------------------------------------------------------ //
+        static Texture2D MakeNoiseTex(string name, Color baseCol, float variance, int size = 64)
+        {
+            string p = SettingsDir + "/T_" + name + ".asset";
+            var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(p);
+            if (existing != null) return existing;
+            var tex = new Texture2D(size, size, TextureFormat.RGB24, true) { name = name };
+            var rng = new System.Random(name.GetHashCode());
+            for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float n = (float)rng.NextDouble() * 2f - 1f;
+                float m = Mathf.PerlinNoise(x * 0.15f, y * 0.15f) - 0.5f;
+                Color c = baseCol + new Color(1, 1, 1, 0) * (n * variance * 0.4f + m * variance);
+                tex.SetPixel(x, y, c);
+            }
+            tex.Apply();
+            AssetDatabase.CreateAsset(tex, p);
+            return tex;
+        }
+
+        static void PaintTerrain(Terrain terrain, List<Transform> waypoints)
+        {
+            var data = terrain.terrainData;
+
+            TerrainLayer L(string n, Color col, float v, float tile)
+            {
+                string p = SettingsDir + "/TL_" + n + ".terrainlayer";
+                var tl = AssetDatabase.LoadAssetAtPath<TerrainLayer>(p);
+                if (tl == null)
+                {
+                    tl = new TerrainLayer { name = n };
+                    AssetDatabase.CreateAsset(tl, p);
+                }
+                tl.diffuseTexture = MakeNoiseTex(n, col, v);
+                tl.tileSize = new Vector2(tile, tile);
+                EditorUtility.SetDirty(tl);
+                return tl;
+            }
+
+            var grass = L("grass", new Color(0.33f, 0.38f, 0.20f), 0.10f, 14f);
+            var dry = L("dry", new Color(0.52f, 0.46f, 0.30f), 0.09f, 18f);
+            var dirt = L("dirt", new Color(0.40f, 0.32f, 0.22f), 0.07f, 9f);
+            data.terrainLayers = new[] { grass, dry, dirt };
+
+            int aw = data.alphamapResolution;
+            var maps = new float[aw, aw, 3];
+            Vector3 tPos = terrain.transform.position;
+            Vector3 tSize = data.size;
+
+            for (int y = 0; y < aw; y++)
+            for (int x = 0; x < aw; x++)
+            {
+                float u = x / (float)(aw - 1);
+                float vv = y / (float)(aw - 1);
+                // alphamap: 2nd index (x) runs along world X, 1st index (y) along world Z
+                float wx = tPos.x + u * tSize.x;
+                float wz = tPos.z + vv * tSize.z;
+
+                float patch = Mathf.PerlinNoise(wx * 0.006f + 3f, wz * 0.006f + 9f);
+                float g = Mathf.Clamp01(1f - patch * 1.3f);
+                float d = Mathf.Clamp01(patch * 1.3f - 0.2f);
+
+                float road = RoadMask(new Vector3(wx, 0, wz), waypoints, 9f, 5f);
+                float roadv = road;
+
+                float total = g + d + roadv + 1e-4f;
+                maps[y, x, 0] = g / total;
+                maps[y, x, 1] = d / total;
+                maps[y, x, 2] = roadv / total;
+            }
+            data.SetAlphamaps(0, 0, maps);
+        }
+
+        /// <summary>1 on the road centre, fading to 0 at (halfWidth+feather).</summary>
+        static float RoadMask(Vector3 world, List<Transform> wps, float halfWidth, float feather)
+        {
+            float best = float.MaxValue;
+            for (int i = 0; i < wps.Count - 1; i++)
+            {
+                Vector3 a = wps[i].position, b = wps[i + 1].position;
+                a.y = b.y = world.y = 0f;
+                Vector3 ab = b - a;
+                float t = Mathf.Clamp01(Vector3.Dot(world - a, ab) / Mathf.Max(0.01f, ab.sqrMagnitude));
+                best = Mathf.Min(best, Vector3.Distance(world, a + ab * t));
+            }
+            return Mathf.Clamp01(1f - Mathf.InverseLerp(halfWidth, halfWidth + feather, best));
+        }
+
+        static GameObject BuildTreePrefab()
+        {
+            const string p = PrefabDir + "/Tree.prefab";
+            var existing = AssetDatabase.LoadAssetAtPath<GameObject>(p);
+            if (existing != null) return existing;
+
+            var go = new GameObject("Tree");
+            var trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            trunk.name = "Trunk";
+            trunk.transform.SetParent(go.transform, false);
+            trunk.transform.localScale = new Vector3(0.5f, 3f, 0.5f);
+            trunk.transform.localPosition = new Vector3(0, 3f, 0);
+            Object.DestroyImmediate(trunk.GetComponent<Collider>());
+            trunk.GetComponent<MeshRenderer>().sharedMaterial = MakeUnlit(new Color(0.28f, 0.21f, 0.14f), "bark");
+
+            for (int i = 0; i < 2; i++)
+            {
+                var canopy = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                canopy.name = "Canopy" + i;
+                canopy.transform.SetParent(go.transform, false);
+                float s = 4.5f - i * 1.4f;
+                canopy.transform.localScale = new Vector3(s, s * 0.9f, s);
+                canopy.transform.localPosition = new Vector3(0, 6f + i * 1.8f, 0);
+                Object.DestroyImmediate(canopy.GetComponent<Collider>());
+                canopy.GetComponent<MeshRenderer>().sharedMaterial =
+                    MakeUnlit(new Color(0.20f + i * 0.05f, 0.30f + i * 0.04f, 0.14f), "leaf" + i);
+            }
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(go, p);
+            Object.DestroyImmediate(go);
+            return prefab;
+        }
+
+        static void ScatterTrees(Terrain terrain, List<Transform> waypoints)
+        {
+            var tree = BuildTreePrefab();
+            var data = terrain.terrainData;
+            data.treePrototypes = new[] { new TreePrototype { prefab = tree } };
+            data.RefreshPrototypes();
+
+            var rng = new System.Random(4242);
+            var instances = new List<TreeInstance>();
+            Vector3 tPos = terrain.transform.position;
+            Vector3 tSize = data.size;
+
+            for (int i = 0; i < 1400; i++)
+            {
+                float nx = (float)rng.NextDouble();
+                float nz = (float)rng.NextDouble();
+                Vector3 world = new Vector3(tPos.x + nx * tSize.x, 0, tPos.z + nz * tSize.z);
+
+                if (RoadMask(world, waypoints, 16f, 10f) > 0.05f) continue;          // clear of road
+                if (Vector3.Distance(world, new Vector3(40, 0, 0)) < 70f) continue;  // clear of village
+                // clumping: skip some to leave clearings
+                if (Mathf.PerlinNoise(world.x * 0.02f, world.z * 0.02f) < 0.42f) continue;
+
+                float scale = 0.7f + (float)rng.NextDouble() * 0.9f;
+                instances.Add(new TreeInstance
+                {
+                    position = new Vector3(nx, 0f, nz),
+                    prototypeIndex = 0,
+                    widthScale = scale,
+                    heightScale = scale * (0.9f + (float)rng.NextDouble() * 0.3f),
+                    color = Color.white,
+                    lightmapColor = Color.white,
+                });
+            }
+            data.SetTreeInstances(instances.ToArray(), true);
+            terrain.Flush();
         }
 
         static float SampleHeight(Terrain t, Vector3 world)
@@ -579,18 +769,24 @@ namespace Ironfield.EditorTools
             var rng = new System.Random(20260910);
             string[] names = { "Ruin_WallLong", "Ruin_WallCorner", "Ruin_RubblePile", "Ruin_HouseShell" };
 
-            for (int i = 0; i < 30; i++)
+            // Two rows of buildings lining the road as it passes ~(40,0,0),
+            // plus loose rubble. Enough to fly between.
+            Vector3 centre = new(40f, 0f, 0f);
+            Vector3 along = new Vector3(0.30f, 0f, 1f).normalized;   // road heading here
+            Vector3 side = Vector3.Cross(Vector3.up, along);
+
+            for (int i = 0; i < 44; i++)
             {
-                // cluster the village around where the road bends past (40,0,0)
-                Vector3 c = new(-40 + (float)rng.NextDouble() * 220f,
-                                0,
-                                -90 + (float)rng.NextDouble() * 200f);
+                float t = (i / 2) * 16f - 176f + (float)rng.NextDouble() * 6f;
+                float lane = (i % 2 == 0 ? -1f : 1f) * (14f + (float)rng.NextDouble() * 10f);
+                Vector3 c = centre + along * t + side * lane;
+                c += new Vector3((float)rng.NextDouble() * 6f, 0, (float)rng.NextDouble() * 6f);
                 c.y = SampleHeight(terrain, c);
+
                 GameObject piece;
                 if (ruins != null)
                 {
                     piece = (GameObject)PrefabUtility.InstantiatePrefab(ruins);
-                    // keep only one named child
                     string want = names[rng.Next(names.Length)];
                     foreach (Transform ch in piece.transform)
                         ch.gameObject.SetActive(ch.name == want);
@@ -602,13 +798,16 @@ namespace Ironfield.EditorTools
                 }
                 piece.transform.SetParent(parent);
                 piece.transform.position = c;
-                piece.transform.rotation = Quaternion.Euler(0, (float)rng.NextDouble() * 360f, 0);
+                // face roughly toward the road
+                piece.transform.rotation = Quaternion.LookRotation(
+                    (lane < 0 ? side : -side), Vector3.up)
+                    * Quaternion.Euler(0, (float)rng.NextDouble() * 24f - 12f, 0);
+                float s = 1f + (float)rng.NextDouble() * 0.6f;
+                piece.transform.localScale *= s;
                 SetLayerRecursive(piece, GameLayers.Environment);
                 if (piece.GetComponentInChildren<Collider>() == null)
-                {
                     foreach (var mf in piece.GetComponentsInChildren<MeshFilter>())
                         mf.gameObject.AddComponent<MeshCollider>();
-                }
             }
         }
 

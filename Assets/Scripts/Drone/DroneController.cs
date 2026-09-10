@@ -23,6 +23,10 @@ namespace Ironfield.Drone
         public bool Boosting { get; private set; }
         public bool ControlsEnabled { get; set; } = true;
 
+        /// <summary>Test hook: when set, overrides pilot input with (throttle, yaw, pitch, roll).</summary>
+        public bool useDebugInput;
+        public Vector4 debugInput;
+
         Rigidbody _rb;
         HealthComponent _health;
         DroneInput _in;
@@ -53,6 +57,14 @@ namespace Ironfield.Drone
             _in = ControlsEnabled && (_health == null || !_health.IsDead)
                 ? DroneInput.Read(mouseSensitivity)
                 : default;
+
+            if (useDebugInput)
+            {
+                _in.Throttle = debugInput.x;
+                _in.Yaw = debugInput.y;
+                _in.Pitch = debugInput.z;
+                _in.Roll = debugInput.w;
+            }
 
             if (_in.FirePressed) FireRequested?.Invoke();
             if (_in.RecallPressed) RecallRequested?.Invoke();
@@ -85,6 +97,16 @@ namespace Ironfield.Drone
             // --- vertical: pitch stick drives climb rate, mild sink ----
             float wantVert = _in.Pitch * tuning.climbAccel
                              - (Mathf.Approximately(_in.Pitch, 0f) ? tuning.gravity * 0.25f : 0f);
+
+            // soft floor: within 5 m of the ground, stop pushing further down
+            if (Physics.Raycast(transform.position + Vector3.up * 2f, Vector3.down,
+                                out var ground, 8f, Ironfield.Core.GameLayers.EnvironmentMask,
+                                QueryTriggerInteraction.Ignore))
+            {
+                float clearance = transform.position.y - ground.point.y;
+                if (clearance < 5f && wantVert < 0f)
+                    wantVert = Mathf.Lerp(0.5f, wantVert, Mathf.Clamp01(clearance / 5f));
+            }
 
             Vector3 want = new Vector3(wantHoriz.x, wantVert, wantHoriz.z);
             Vector3 v = _rb.linearVelocity;

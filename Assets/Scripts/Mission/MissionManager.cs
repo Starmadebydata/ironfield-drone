@@ -36,6 +36,11 @@ namespace Ironfield.Mission
         public int VehiclesTotal => VehicleRegistry.TotalRegistered;
         public DroneController ActiveDrone { get; private set; }
 
+        /// <summary>Seconds since the mission became Active (for the briefing fade).</summary>
+        public float TimeActive { get; private set; }
+        /// <summary>Raised with the damage amount whenever the current drone is hit.</summary>
+        public event System.Action<float> DroneDamaged;
+
         void Start()
         {
             DronesLeft = droneStock;
@@ -54,6 +59,7 @@ namespace Ironfield.Mission
         void Update()
         {
             if (State != MissionState.Active) return;
+            TimeActive += Time.deltaTime;
 
             if (VehicleRegistry.DestroyedCount >= VehicleRegistry.TotalRegistered &&
                 VehicleRegistry.TotalRegistered > 0)
@@ -93,6 +99,7 @@ namespace Ironfield.Mission
             if (health != null)
             {
                 var deadDrone = ActiveDrone;
+                health.Damaged += (amt, _) => DroneDamaged?.Invoke(amt);
                 health.Died += _ =>
                 {
                     Vector3 where = deadDrone != null ? deadDrone.transform.position : pos;
@@ -100,6 +107,20 @@ namespace Ironfield.Mission
                     OnDroneSpent(where);
                 };
             }
+        }
+
+        /// <summary>Nearest still-alive vehicle to a world point, or null.</summary>
+        public Vehicle NearestLiveVehicle(Vector3 from)
+        {
+            Vehicle best = null;
+            float bestSqr = float.MaxValue;
+            foreach (var v in VehicleRegistry.Alive)
+            {
+                if (v == null || v.IsDestroyed) continue;
+                float d = (v.transform.position - from).sqrMagnitude;
+                if (d < bestSqr) { bestSqr = d; best = v; }
+            }
+            return best;
         }
 
         void OnDroneSpent(Vector3 at)

@@ -11,6 +11,19 @@ namespace Ironfield.Vehicles
         public static int TotalRegistered { get; private set; }
         public static int DestroyedCount { get; private set; }
 
+        /// <summary>Fired once per vehicle when it is knocked out.</summary>
+        public static event System.Action<Vehicle> AnyDestroyed;
+
+        [UnityEngine.RuntimeInitializeOnLoadMethod(
+            UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics()
+        {
+            _alive.Clear();
+            TotalRegistered = 0;
+            DestroyedCount = 0;
+            AnyDestroyed = null;
+        }
+
         public static void ResetCounters()
         {
             TotalRegistered = _alive.Count;
@@ -28,7 +41,11 @@ namespace Ironfield.Vehicles
 
         internal static void MarkDestroyed(Vehicle v)
         {
-            if (_alive.Remove(v)) DestroyedCount++;
+            if (_alive.Remove(v))
+            {
+                DestroyedCount++;
+                AnyDestroyed?.Invoke(v);
+            }
         }
 
         internal static void Unregister(Vehicle v) => _alive.Remove(v);

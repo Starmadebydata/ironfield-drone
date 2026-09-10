@@ -24,6 +24,12 @@ namespace Ironfield.Combat
 
         GameObject _instigator;
 
+        /// <summary>(worldPos, hitAVehicle) — for HUD hit feedback.</summary>
+        public static event System.Action<Vector3, bool> DamagedSomething;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetStatics() => DamagedSomething = null;
+
         public void Fire(GameObject instigator)
         {
             _instigator = instigator;
@@ -53,6 +59,8 @@ namespace Ironfield.Combat
                     var info = DamageInfo.Explosive(damage * t, transform.position,
                                                     _instigator != null ? _instigator : gameObject);
                     health.ApplyDamage(info);
+                    bool isVehicle = col.GetComponentInParent<Ironfield.Vehicles.Vehicle>() != null;
+                    DamagedSomething?.Invoke(transform.position, isVehicle);
                 }
 
                 var rb = col.attachedRigidbody;
