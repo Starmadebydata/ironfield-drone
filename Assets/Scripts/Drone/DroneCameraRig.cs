@@ -70,7 +70,12 @@ namespace Ironfield.Drone
                 transform.position += Random.insideUnitSphere * (_shakeMag * Mathf.Clamp01(_shake));
             }
 
-            float wantFov = (_drone != null && _drone.Boosting) ? boostFov : baseFov;
+            float wantFov = baseFov;
+            if (_drone != null)
+            {
+                if (_drone.Precision) wantFov = baseFov * 0.62f;   // precision aim: zoom in
+                else if (_drone.Boosting) wantFov = boostFov;
+            }
             _cam.fieldOfView = Mathf.Lerp(_cam.fieldOfView, wantFov,
                 1f - Mathf.Exp(-fovLerp * dt));
         }

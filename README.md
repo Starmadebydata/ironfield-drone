@@ -33,19 +33,25 @@ Steps 2 and 3 are also on the **Ironfield** editor menu once the project is open
 
 Open the project in Unity Hub, load `Assets/Scenes/Mission01.unity`, press Play.
 
-| Action            | Gamepad                | Keyboard / mouse                       |
-|-------------------|------------------------|---------------------------------------|
-| Forward / back    | Left stick Y           | `W` / `S`                              |
-| Turn (yaw)        | Left stick X           | `A` / `D`                              |
-| **Climb / descend** | Right stick Y / RB-LB | **`Space` / `Ctrl`** (or `R` / `F`, or ↑ / ↓) |
-| Roll              | Right stick X          | `Q` / `E` (or ← / →)                    |
-| Fine aim          | —                      | hold RMB + move mouse                   |
-| Boost             | Right trigger          | `Left Shift`                            |
-| Detonate          | A / B                  | LMB or `Enter`                          |
-| Show controls     | —                      | hold `H`                               |
+**Mouse-aim flight.** The mouse moves an aim reticle inside the ring; the drone
+continuously turns its nose onto the reticle and flies where you point. Hands off
+the mouse and it flies straight.
 
-Fly at a vehicle so the reticle locks, then dive into it — the warhead detonates
-on contact (a hard lock gives you gentle terminal guidance on the way in).
+| Action            | Mouse / keyboard                       | Gamepad                |
+|-------------------|---------------------------------------|------------------------|
+| Aim / steer       | **move the mouse**                     | Right stick            |
+| Detonate warhead  | **Left mouse button** (or `Enter`)     | A / RB                 |
+| Precision (zoom)  | **hold Right mouse button**            | Left trigger           |
+| Throttle / brake  | `W` / `S`                              | Left stick Y           |
+| Boost             | `Left Shift`                           | Right trigger          |
+| Climb / descend trim | `Space` / `Ctrl`                    | RB / LB                |
+| Roll              | `Q` / `E`                              | Left stick X           |
+| Recall            | `R`                                    | Y                      |
+| Show controls     | hold `H`                               | —                      |
+
+The OS cursor is hidden and locked while flying; it returns on the end screen.
+Point the reticle at a vehicle so the lock box closes, then dive in — the warhead
+detonates on contact (a hard lock gives gentle terminal guidance on the way in).
 Destroy every vehicle to win; you fail if the column reaches the far end of the
 road, or you run out of drones. Tank / IFV turrets shoot back. The on-screen
 control legend fades after ~14 s; hold `H` to bring it back.

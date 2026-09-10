@@ -4,9 +4,10 @@ using UnityEngine;
 namespace Ironfield.Drone
 {
     /// <summary>
-    /// Arcade quad flight: stick torques for pitch/roll/yaw, a throttle axis for
-    /// climb, body-forward thrust from pitch attitude, light self-levelling, and
-    /// a speed clamp. Rigidbody based but not a real aero sim.
+    /// Mouse-aim arcade flight. A virtual reticle (mouse delta, springs to
+    /// centre) says where the pilot wants the nose; the drone continuously yaws
+    /// and pitches onto it and flies along the nose. Keyboard is throttle / climb
+    /// trim / roll / boost only. Rigidbody based, not an aero sim.
     /// </summary>
     [RequireComponent(typeof(Rigidbody))]
     public class DroneController : MonoBehaviour
@@ -14,22 +15,35 @@ namespace Ironfield.Drone
         public DroneTuning tuning;
         [Tooltip("Spinning prop meshes, purely cosmetic.")]
         public Transform[] propSpinners;
-        public float propSpinSpeed = 3200f;
-        public float mouseSensitivity = 1f;
+
+        [Header("Mouse aim")]
+        [Tooltip("Reticle travel per pixel of mouse movement.")]
+        public float aimSensitivity = 0.0016f;
+        [Tooltip("How fast the reticle springs back to centre (per second).")]
+        public float aimReturn = 2.4f;
+        [Tooltip("Nose pitch at full reticle deflection, degrees.")]
+        public float pitchRange = 46f;
+        [Range(0.1f, 1f)] public float precisionScale = 0.4f;
+        [Tooltip("Idle forward speed as a fraction of max, with the throttle centred.")]
+        [Range(0.1f, 1f)] public float cruiseFraction = 0.42f;
 
         [Header("Runtime state (read-only)")]
         [SerializeField] float _speed;
         public float Speed => _speed;
         public bool Boosting { get; private set; }
+        public bool Precision { get; private set; }
+        public Vector2 AimReticle => _aim;          // -1..1 inside the unit circle
         public bool ControlsEnabled { get; set; } = true;
 
-        /// <summary>Test hook: when set, overrides pilot input with (throttle, yaw, pitch, roll).</summary>
+        /// <summary>Test hook: (throttle, aimX, aimY, roll) forced when set.</summary>
         public bool useDebugInput;
         public Vector4 debugInput;
 
         Rigidbody _rb;
         HealthComponent _health;
         DroneInput _in;
+        Vector2 _aim;
+        float _bank, _pitchVis, _heading;
 
         public System.Action FireRequested;
         public System.Action RecallRequested;
@@ -37,12 +51,12 @@ namespace Ironfield.Drone
         void Awake()
         {
             _rb = GetComponent<Rigidbody>();
-            _rb.useGravity = false;                 // handled manually via tuning.gravity
+            _rb.useGravity = false;
             _rb.linearDamping = 0f;
             _rb.angularDamping = 0f;
             _rb.interpolation = RigidbodyInterpolation.Interpolate;
             _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            _rb.freezeRotation = true;              // rotation is driven by MoveRotation
+            _rb.freezeRotation = true;
             _health = GetComponent<HealthComponent>();
             if (tuning == null)
             {
@@ -54,82 +68,90 @@ namespace Ironfield.Drone
 
         void Update()
         {
-            _in = ControlsEnabled && (_health == null || !_health.IsDead)
-                ? DroneInput.Read(mouseSensitivity)
-                : default;
+            float dt = Time.deltaTime;
+            bool alive = ControlsEnabled && (_health == null || !_health.IsDead);
+            _in = alive ? DroneInput.Read() : default;
+
+            Precision = _in.Precision;
+
+            // --- integrate the mouse reticle ------------------------------
+            float sens = aimSensitivity * (Precision ? precisionScale : 1f);
+            _aim += _in.AimDelta * sens;
+            if (!useDebugInput)
+            {
+                // spring back toward centre so hands-off = fly straight
+                _aim = Vector2.Lerp(_aim, Vector2.zero, 1f - Mathf.Exp(-aimReturn * dt));
+            }
+            if (_aim.magnitude > 1f) _aim = _aim.normalized;
 
             if (useDebugInput)
             {
                 _in.Throttle = debugInput.x;
-                _in.Yaw = debugInput.y;
-                _in.Pitch = debugInput.z;
+                _aim = new Vector2(debugInput.y, debugInput.z);
                 _in.Roll = debugInput.w;
             }
 
             if (_in.FirePressed) FireRequested?.Invoke();
             if (_in.RecallPressed) RecallRequested?.Invoke();
 
-            float spin = (_speed * 40f + 800f + (Boosting ? 1500f : 0f));
+            // cosmetic prop spin
+            float spin = _speed * 40f + 900f + (Boosting ? 1600f : 0f);
             if (propSpinners != null)
                 foreach (var p in propSpinners)
-                    if (p) p.Rotate(Vector3.up, spin * Time.deltaTime, Space.World);
+                    if (p) p.Rotate(Vector3.up, spin * dt, Space.World);
         }
-
-        // smoothed visual attitude
-        float _bank, _pitchVis, _heading;
 
         void FixedUpdate()
         {
             float dt = Time.fixedDeltaTime;
             Boosting = _in.Boost;
 
-            // --- heading (yaw) ------------------------------------------
-            _heading += _in.Yaw * tuning.yawRate * dt;
-            Quaternion headingRot = Quaternion.Euler(0f, _heading, 0f);
-            Vector3 fwd = headingRot * Vector3.forward;
-            Vector3 right = headingRot * Vector3.right;
+            // --- orientation from the reticle --------------------------
+            _heading += _aim.x * tuning.yawRate * dt;
+            float pitchCmd = -_aim.y * pitchRange;                     // up on screen = nose up
+            Quaternion noseRot = Quaternion.Euler(pitchCmd, _heading, 0f);
+            Vector3 nose = noseRot * Vector3.forward;
 
-            // --- target horizontal velocity ---------------------------
+            // --- speed along the nose --------------------------------
             float maxSpd = Boosting ? tuning.boostMaxSpeed : tuning.maxSpeed;
-            Vector3 wantHoriz = fwd * (_in.Throttle * maxSpd)
-                              + right * (_in.Roll * maxSpd * 0.45f);
+            float frac = Mathf.Lerp(cruiseFraction, 1f, Mathf.Clamp01(0.5f + 0.5f * _in.Throttle));
+            if (_in.Throttle < 0f) frac = Mathf.Lerp(cruiseFraction, 0.12f, -_in.Throttle);  // S brakes
+            float speedCmd = frac * maxSpd;
 
-            // --- vertical: dedicated climb axis (Space/Ctrl, R/F, right-stick-Y)
-            //     plus a little lift from nose-up mouse aim; mild sink at neutral
-            float climbCmd = Mathf.Clamp(_in.Climb + _in.Pitch * 0.35f, -1f, 1f);
-            float wantVert = climbCmd * (tuning.climbAccel * (Boosting ? 1.5f : 1f))
-                             - (Mathf.Abs(climbCmd) < 0.05f ? tuning.gravity * 0.22f : 0f);
+            Vector3 want = nose * speedCmd;
+            // gentle collective trim + a touch of sink when flying level hands-off
+            float levelness = 1f - Mathf.Clamp01(Mathf.Abs(pitchCmd) / 12f);
+            want += Vector3.up * (_in.ClimbTrim * tuning.climbAccel * 0.7f
+                                  - levelness * tuning.gravity * 0.18f);
 
-            // soft floor: within 5 m of the ground, stop pushing further down
+            // --- soft floor -----------------------------------------
             if (Physics.Raycast(transform.position + Vector3.up * 2f, Vector3.down,
-                                out var ground, 8f, Ironfield.Core.GameLayers.EnvironmentMask,
+                                out var ground, 9f, Ironfield.Core.GameLayers.EnvironmentMask,
                                 QueryTriggerInteraction.Ignore))
             {
                 float clearance = transform.position.y - ground.point.y;
-                if (clearance < 5f && wantVert < 0f)
-                    wantVert = Mathf.Lerp(0.5f, wantVert, Mathf.Clamp01(clearance / 5f));
+                if (clearance < 5f && want.y < 0f)
+                    want.y = Mathf.Lerp(0.8f, want.y, Mathf.Clamp01(clearance / 5f));
             }
 
-            Vector3 want = new Vector3(wantHoriz.x, wantVert, wantHoriz.z);
             Vector3 v = _rb.linearVelocity;
-            float responsiveness = 1f - Mathf.Exp(-tuning.linearDrag * 3f * dt);
+            float responsiveness = 1f - Mathf.Exp(-tuning.linearDrag * 3.2f * dt);
             v = Vector3.Lerp(v, want, responsiveness);
             if (v.magnitude > tuning.boostMaxSpeed) v = v.normalized * tuning.boostMaxSpeed;
             _rb.linearVelocity = v;
             _speed = new Vector2(v.x, v.z).magnitude;
 
-            // --- visual attitude: bank into turns / roll, nose with climb+throttle
-            float targetBank = -_in.Roll * 28f - _in.Yaw * 14f;
-            float targetPitch = -_in.Pitch * 18f + _in.Throttle * 8f - climbCmd * 10f;
-            float k = 1f - Mathf.Exp(-tuning.angularDamp * dt);
-            _bank = Mathf.Lerp(_bank, targetBank, k);
-            _pitchVis = Mathf.Lerp(_pitchVis, targetPitch, k);
+            // --- visual attitude: bank into the turn, nose follows pitch cmd
+            float targetBank = -_aim.x * 34f - _in.Roll * 22f;
+            float targetPitch = pitchCmd * 0.85f + _in.Throttle * 4f;
+            float kk = 1f - Mathf.Exp(-tuning.angularDamp * dt);
+            _bank = Mathf.Lerp(_bank, targetBank, kk);
+            _pitchVis = Mathf.Lerp(_pitchVis, targetPitch, kk);
             _rb.MoveRotation(Quaternion.Euler(_pitchVis, _heading, _bank));
         }
 
         void OnCollisionEnter(Collision c)
         {
-            // Slamming into the world at speed hurts (warhead handles vehicles).
             if (_health == null) return;
             float impact = c.relativeVelocity.magnitude;
             if (impact > 14f && ((1 << c.gameObject.layer) & Ironfield.Core.GameLayers.EnvironmentMask) != 0)

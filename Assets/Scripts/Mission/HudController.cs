@@ -40,13 +40,6 @@ namespace Ironfield.Mission
             if (mission != null) mission.DroneDamaged += OnDroneDamaged;
         }
 
-        void OnDisable()
-        {
-            Explosion.DamagedSomething -= OnHit;
-            VehicleRegistry.AnyDestroyed -= OnKill;
-            if (mission != null) mission.DroneDamaged -= OnDroneDamaged;
-        }
-
         void Awake()
         {
             _px = new Texture2D(1, 1);
@@ -63,6 +56,19 @@ namespace Ironfield.Mission
 #if ENABLE_INPUT_SYSTEM
             _helpHeld = Keyboard.current != null && Keyboard.current.hKey.isPressed;
 #endif
+            // hide + lock the OS cursor while flying so mouse drives the drone
+            bool flying = mission != null && mission.State == MissionState.Active;
+            Cursor.lockState = flying ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !flying;
+        }
+
+        void OnDisable()
+        {
+            Explosion.DamagedSomething -= OnHit;
+            VehicleRegistry.AnyDestroyed -= OnKill;
+            if (mission != null) mission.DroneDamaged -= OnDroneDamaged;
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
         }
 
         void OnHit(Vector3 pos, bool vehicle)
@@ -131,12 +137,12 @@ namespace Ironfield.Mission
                 var hc = hs.normal.textColor; hc.a = fade; hs.normal.textColor = hc;
                 string[] keys =
                 {
-                    "W / S    forward / back",
-                    "A / D    turn",
-                    "SPACE / CTRL   climb / descend",
-                    "Q / E    roll     SHIFT   boost",
-                    "LMB / ENTER   detonate",
-                    "hold RMB + mouse   aim",
+                    "MOUSE   aim / steer — the drone flies where you point",
+                    "LMB     detonate warhead",
+                    "RMB     precision (zoom + slow aim)",
+                    "W / S   throttle / brake     SHIFT   boost",
+                    "SPACE / CTRL   climb / descend trim",
+                    "Q / E   roll     R   recall",
                     "(hold H for controls)",
                 };
                 for (int i = 0; i < keys.Length; i++)
@@ -268,12 +274,44 @@ namespace Ironfield.Mission
 
         void DrawReticle(Vector2 c)
         {
-            GUI.color = new Color(1f, 1f, 1f, 0.55f);
-            GUI.DrawTexture(new Rect(c.x - 12, c.y - 1, 9, 2), _px);
-            GUI.DrawTexture(new Rect(c.x + 3, c.y - 1, 9, 2), _px);
-            GUI.DrawTexture(new Rect(c.x - 1, c.y - 12, 2, 9), _px);
-            GUI.DrawTexture(new Rect(c.x - 1, c.y + 3, 2, 9), _px);
+            float w = Screen.width, h = Screen.height;
+            float ring = Mathf.Min(w, h) * 0.16f;   // reticle travel radius
+
+            // fixed centre pip + deadzone ring (where the nose points now)
+            GUI.color = new Color(1f, 1f, 1f, 0.22f);
+            DrawCircle(c, ring, 1f);
+            GUI.color = new Color(1f, 1f, 1f, 0.5f);
+            GUI.DrawTexture(new Rect(c.x - 3, c.y - 1, 6, 2), _px);
+            GUI.DrawTexture(new Rect(c.x - 1, c.y - 3, 2, 6), _px);
+
+            // moving mouse-aim reticle
+            var drone = mission != null ? mission.ActiveDrone : null;
+            if (drone != null)
+            {
+                Vector2 a = drone.AimReticle;               // -1..1
+                Vector2 p = new Vector2(c.x + a.x * ring, c.y - a.y * ring);
+                Color col = drone.Precision ? new Color(1f, 0.85f, 0.3f) : new Color(0.7f, 1f, 0.8f);
+                GUI.color = col;
+                float s = drone.Precision ? 9f : 12f;
+                GUI.DrawTexture(new Rect(p.x - s, p.y - 1.5f, s - 3, 3), _px);
+                GUI.DrawTexture(new Rect(p.x + 3, p.y - 1.5f, s - 3, 3), _px);
+                GUI.DrawTexture(new Rect(p.x - 1.5f, p.y - s, 3, s - 3), _px);
+                GUI.DrawTexture(new Rect(p.x - 1.5f, p.y + 3, 3, s - 3), _px);
+            }
             GUI.color = Color.white;
+        }
+
+        void DrawCircle(Vector2 c, float r, float thick)
+        {
+            const int seg = 40;
+            Vector2 prev = c + new Vector2(r, 0);
+            for (int i = 1; i <= seg; i++)
+            {
+                float ang = i / (float)seg * Mathf.PI * 2f;
+                Vector2 cur = c + new Vector2(Mathf.Cos(ang) * r, Mathf.Sin(ang) * r);
+                DrawLine(prev, cur, thick);
+                prev = cur;
+            }
         }
 
         void DrawHitMarker(Vector2 c, float r, Color col)

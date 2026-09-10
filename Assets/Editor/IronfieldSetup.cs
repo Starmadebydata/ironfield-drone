@@ -516,6 +516,17 @@ namespace Ironfield.EditorTools
                 pivot.transform.rotation = Quaternion.identity;
                 tr.SetParent(pivot.transform, true);
                 props.Add(pivot.transform);
+
+                // motion-blur disc: a flat translucent ring that reads as a spinning rotor
+                var disc = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                disc.name = "BlurDisc";
+                Object.DestroyImmediate(disc.GetComponent<Collider>());
+                disc.transform.SetParent(pivot.transform, false);
+                float rad = Mathf.Max(mr.bounds.extents.x, mr.bounds.extents.z) * 1.05f;
+                disc.transform.localScale = new Vector3(rad * 2f, 0.012f, rad * 2f);
+                disc.GetComponent<MeshRenderer>().sharedMaterial = PropBlurMat();
+                disc.GetComponent<MeshRenderer>().shadowCastingMode =
+                    UnityEngine.Rendering.ShadowCastingMode.Off;
             }
 
             // --- underslung warhead (visual only) ----------------------
@@ -812,6 +823,7 @@ namespace Ironfield.EditorTools
             // --- village ruins + battlefield dressing ----------
             ScatterRuins(terrain);
             ScenePropsPass(terrain, waypoints);
+            BuildAtmosphereDust();
 
             // --- managers --------------------------------------
             var mgrGo = new GameObject("MissionManager");
@@ -1402,6 +1414,37 @@ namespace Ironfield.EditorTools
         static float SampleHeight(Terrain t, Vector3 world)
             => t.SampleHeight(world) + t.transform.position.y;
 
+        static void BuildAtmosphereDust()
+        {
+            var go = new GameObject("AtmosphereDust");
+            go.transform.position = new Vector3(60f, 40f, 20f);
+            var ps = go.AddComponent<ParticleSystem>();
+            var main = ps.main;
+            main.loop = true;
+            main.startLifetime = 26f;
+            main.startSpeed = 0.35f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.04f, 0.12f);
+            main.startColor = new Color(0.85f, 0.83f, 0.78f, 0.10f);
+            main.maxParticles = 900;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.gravityModifier = 0.004f;
+            var em = ps.emission; em.rateOverTime = 34f;
+            var sh = ps.shape;
+            sh.shapeType = ParticleSystemShapeType.Box;
+            sh.scale = new Vector3(620f, 70f, 520f);
+            var noise = ps.noise;
+            noise.enabled = true; noise.strength = 0.25f; noise.frequency = 0.15f;
+            var col = ps.colorOverLifetime; col.enabled = true;
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                      new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.3f),
+                              new GradientAlphaKey(1f, 0.7f), new GradientAlphaKey(0f, 1f) });
+            col.color = g;
+            var rend = go.GetComponent<ParticleSystemRenderer>();
+            rend.material = MakeFx(Color.white, "dust");
+            rend.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+
         static void DestroyIfPresent<T>(GameObject go) where T : Component
         {
             var c = go.GetComponent<T>();
@@ -1532,6 +1575,33 @@ namespace Ironfield.EditorTools
                 }
                 SetLayerRecursive(pile.gameObject, GameLayers.Environment);
             }
+
+            // --- worn tyre ruts along the road -----------------------
+            var rut = MakeUnlit(new Color(0.13f, 0.11f, 0.09f), "rut");
+            var ruts = new GameObject("Ruts").transform;
+            ruts.SetParent(parent);
+            var rpts = ResamplePath(waypoints, 9f);
+            for (int i = 0; i < rpts.Count - 1; i++)
+            {
+                Vector3 a = rpts[i], b = rpts[i + 1];
+                Vector3 dir = (b - a); float len = dir.magnitude; dir /= Mathf.Max(0.01f, len);
+                Vector3 side = Vector3.Cross(Vector3.up, dir);
+                foreach (float off in new[] { -1.7f, 1.7f })
+                {
+                    var seg = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    Object.DestroyImmediate(seg.GetComponent<Collider>());
+                    seg.transform.SetParent(ruts);
+                    Vector3 mid = (a + b) * 0.5f + side * off;
+                    mid.y = SampleHeight(terrain, mid) + 0.09f;
+                    seg.transform.position = mid;
+                    seg.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                    seg.transform.localScale = new Vector3(0.55f, 0.04f, len * 1.05f);
+                    seg.GetComponent<MeshRenderer>().sharedMaterial = rut;
+                    seg.GetComponent<MeshRenderer>().shadowCastingMode =
+                        UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
+            }
+            SetLayerRecursive(ruts.gameObject, GameLayers.Environment);
 
             StaticBatchingUtility.Combine(parent.gameObject);
         }
@@ -1743,6 +1813,28 @@ namespace Ironfield.EditorTools
             }
             _matCache["fx_" + name] = existing;
             return existing;
+        }
+
+        static Material PropBlurMat()
+        {
+            if (_matCache.TryGetValue("prop_blur", out var m) && m != null) return m;
+            const string p = SettingsDir + "/M_prop_blur.mat";
+            var ex = AssetDatabase.LoadAssetAtPath<Material>(p);
+            if (ex == null)
+            {
+                ex = new Material(Shader.Find("Standard")) { name = "prop_blur" };
+                ex.SetFloat("_Mode", 3f);
+                ex.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+                ex.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+                ex.SetInt("_ZWrite", 0);
+                ex.DisableKeyword("_ALPHATEST_ON");
+                ex.EnableKeyword("_ALPHABLEND_ON");
+                ex.renderQueue = 3000;
+                ex.color = new Color(0.14f, 0.14f, 0.15f, 0.22f);
+                AssetDatabase.CreateAsset(ex, p);
+            }
+            _matCache["prop_blur"] = ex;
+            return ex;
         }
 
         static Material MakeStandard(string name, Color c, float smoothness, float metallic)
