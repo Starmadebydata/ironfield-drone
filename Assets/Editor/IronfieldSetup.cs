@@ -33,6 +33,15 @@ namespace Ironfield.EditorTools
         const string ArtTruck = "Assets/Art/Vehicles/Truck.fbx";
         const string ArtRuins = "Assets/Art/Ruins/RuinsKit.fbx";
 
+        // CC0 / CC-BY packs converted from .glb via tools/blender/convert_gltf.py — see CREDITS.md
+        const string ExtDir = "Assets/Art/External/";
+        static readonly string[] ExtModels =
+        {
+            "tank.fbx", "ifv.fbx", "truck.fbx",
+            "tree_broadleaf.fbx", "tree_conifer.fbx", "tree_dead.fbx",
+            "bld_house.fbx", "bld_block.fbx",
+        };
+
         const string PrefabDir = "Assets/Prefabs";
         const string SettingsDir = "Assets/Settings";
         const string ScenesDir = "Assets/Scenes";
@@ -100,6 +109,7 @@ namespace Ironfield.EditorTools
             ConfigureModelImport(ArtIFV, 1f);
             ConfigureModelImport(ArtTruck, 1f);
             ConfigureModelImport(ArtRuins, 1f);
+            foreach (var m in ExtModels) ConfigureModelImport(ExtDir + m, 1f);
             AssetDatabase.Refresh();
 
             var tuning = CreateTuning();
@@ -233,6 +243,115 @@ namespace Ironfield.EditorTools
             mi.meshCompression = ModelImporterMeshCompression.Off;
             mi.materialImportMode = ModelImporterMaterialImportMode.ImportStandard;
             mi.SaveAndReimport();
+        }
+
+        // ----------------------------------------------------------------- //
+        // External CC0/CC-BY model loading
+        // ----------------------------------------------------------------- //
+        public enum FitAxis { XZ, Y }
+
+        /// <summary>
+        /// Instantiate an imported FBX, unpack it, scale it so its largest
+        /// footprint (XZ) or height (Y) equals <paramref name="targetSize"/>
+        /// metres, drop it so its base sits at local y=0, and yaw it. Returns
+        /// the instance (unparented) or null if the model is missing.
+        /// </summary>
+        static Dictionary<string, Dictionary<string, Color>> _palettes;
+
+        static void LoadPalettes()
+        {
+            if (_palettes != null) return;
+            _palettes = new();
+            var ta = AssetDatabase.LoadAssetAtPath<TextAsset>(ExtDir + "palettes.txt");
+            if (ta == null) return;
+            // flat format: model|material|r,g,b   (one per line)
+            foreach (var raw in ta.text.Split('\n'))
+            {
+                var line = raw.Trim();
+                if (line.Length == 0) continue;
+                var p = line.Split('|');
+                if (p.Length != 3) continue;
+                var rgb = p[2].Split(',');
+                if (rgb.Length != 3) continue;
+                if (!_palettes.TryGetValue(p[0], out var map))
+                    _palettes[p[0]] = map = new Dictionary<string, Color>();
+                map[p[1]] = new Color(
+                    float.Parse(rgb[0], System.Globalization.CultureInfo.InvariantCulture),
+                    float.Parse(rgb[1], System.Globalization.CultureInfo.InvariantCulture),
+                    float.Parse(rgb[2], System.Globalization.CultureInfo.InvariantCulture));
+            }
+        }
+
+        static Color Militarize(Color c)
+        {
+            float lum = c.r * 0.3f + c.g * 0.59f + c.b * 0.11f;
+            if (lum < 0.06f) return c;                       // keep near-blacks (tracks, tyres)
+            var olive = new Color(0.34f, 0.36f, 0.22f) * Mathf.Clamp01(lum * 1.8f + 0.12f);
+            return Color.Lerp(c, olive, 0.7f);
+        }
+
+        static void ApplyPalette(GameObject go, string modelName, bool militarize)
+        {
+            LoadPalettes();
+            if (!_palettes.TryGetValue(modelName, out var map)) return;
+            foreach (var r in go.GetComponentsInChildren<MeshRenderer>())
+            {
+                var mats = r.sharedMaterials;
+                var outMats = new Material[mats.Length];
+                for (int i = 0; i < mats.Length; i++)
+                {
+                    if (mats[i] == null) { outMats[i] = mats[i]; continue; }
+                    string key = mats[i].name.Replace(" (Instance)", "");
+                    int dot = key.IndexOf('.');
+                    string baseKey = dot > 0 ? key[..dot] : key;
+                    Color col = map.TryGetValue(key, out var c1) ? c1
+                              : map.TryGetValue(baseKey, out var c2) ? c2
+                              : mats[i].color;
+                    if (militarize) col = Militarize(col);
+                    outMats[i] = MakeStandard($"ext_{modelName}_{key}", col, 0.15f, 0f);
+                }
+                r.sharedMaterials = outMats;
+            }
+        }
+
+        static GameObject LoadExternalModel(string path, float targetSize,
+            FitAxis fit = FitAxis.XZ, float yawDeg = 0f, bool militarize = false)
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (asset == null) return null;
+
+            var go = (GameObject)PrefabUtility.InstantiatePrefab(asset);
+            PrefabUtility.UnpackPrefabInstance(go, PrefabUnpackMode.Completely,
+                InteractionMode.AutomatedAction);
+            // keep the importer's own axis-correction transform on `go`; only
+            // move it to the origin so bounds math below is in a clean frame.
+            go.transform.position = Vector3.zero;
+
+            // rebuild materials from the source .glb base colours (the glb->fbx
+            // hop mangles them), optionally pushed toward olive-drab.
+            ApplyPalette(go, Path.GetFileNameWithoutExtension(path), militarize);
+
+            var rends = go.GetComponentsInChildren<Renderer>();
+            if (rends.Length == 0) { Object.DestroyImmediate(go); return null; }
+            Bounds b = rends[0].bounds;
+            for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
+
+            float measure = fit == FitAxis.Y ? Mathf.Max(b.size.y, 0.01f)
+                                             : Mathf.Max(b.size.x, b.size.z, 0.01f);
+            float k = targetSize / measure;
+
+            // wrap in a clean root so scale + base-align + yaw compose cleanly
+            var root = new GameObject(Path.GetFileNameWithoutExtension(path));
+            go.transform.SetParent(root.transform, true);
+            root.transform.localScale = Vector3.one * k;
+
+            // recompute bounds after scaling to find the base
+            rends = root.GetComponentsInChildren<Renderer>();
+            b = rends[0].bounds;
+            for (int i = 1; i < rends.Length; i++) b.Encapsulate(rends[i].bounds);
+            go.transform.position += new Vector3(-b.center.x, -b.min.y, -b.center.z);
+            root.transform.rotation = Quaternion.Euler(0f, yawDeg, 0f);
+            return root;
         }
 
         // ----------------------------------------------------------------- //
@@ -430,31 +549,44 @@ namespace Ironfield.EditorTools
             float hp, float armor, float width, float length, float height)
         {
             var fireSmoke = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/FireSmoke.prefab");
-            var model = AssetDatabase.LoadAssetAtPath<GameObject>(fbx);
             var root = new GameObject(name);
             root.tag = GameTags.Vehicle;
             SetLayerRecursive(root, GameLayers.Vehicle);
 
-            GameObject intact = null, wreck = null;
-            if (model != null)
+            // Prefer the CC-BY external model; the yaw values line each model's
+            // nose up with +Z (found by eye from the smoke shot).
+            (string ext, float yaw) = cls switch
             {
-                var inst = (GameObject)PrefabUtility.InstantiatePrefab(model);
-                inst.transform.SetParent(root.transform, false);
-                inst.name = "Model";
-                foreach (Transform child in inst.transform)
-                {
-                    if (child.name.EndsWith("_Intact")) intact = child.gameObject;
-                    else if (child.name.EndsWith("_Wreck")) wreck = child.gameObject;
-                }
+                VehicleClass.Tank  => (ExtDir + "tank.fbx", 0f),
+                VehicleClass.IFV   => (ExtDir + "ifv.fbx", 0f),
+                _                  => (ExtDir + "truck.fbx", 0f),
+            };
+
+            // the tank model ships toy-coloured; militarise it. IFV / truck
+            // palettes are already olive so leave them faithful.
+            bool milit = cls == VehicleClass.Tank;
+            GameObject intact = LoadExternalModel(ext, length, FitAxis.XZ, yaw, milit);
+            GameObject wreck = null;
+            if (intact != null)
+            {
+                intact.name = "Model";
+                intact.transform.SetParent(root.transform, false);
+                // recover real footprint from the fitted model
+                var rr = intact.GetComponentsInChildren<Renderer>();
+                Bounds bb = rr[0].bounds;
+                for (int i = 1; i < rr.Length; i++) bb.Encapsulate(rr[i].bounds);
+                width = Mathf.Max(1f, bb.size.x);
+                height = Mathf.Max(1f, bb.size.y);
+                length = Mathf.Max(1f, bb.size.z);
             }
-            if (intact == null)
+            else
             {
                 intact = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                intact.name = "Model";
                 intact.transform.SetParent(root.transform, false);
                 intact.transform.localScale = new Vector3(width, height, length);
                 intact.transform.localPosition = new Vector3(0, height * 0.5f, 0);
             }
-            if (wreck != null) wreck.SetActive(false);
 
             var col = root.AddComponent<BoxCollider>();
             col.size = new Vector3(width, height, length);
@@ -990,6 +1122,27 @@ namespace Ironfield.EditorTools
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(p);
             if (existing != null) return existing;
 
+            // Prefer the CC0/CC-BY tree models; only the bush stays procedural.
+            string extPath = kind switch
+            {
+                Foliage.Broadleaf => ExtDir + "tree_broadleaf.fbx",
+                Foliage.Conifer   => ExtDir + "tree_conifer.fbx",
+                Foliage.Dead      => ExtDir + "tree_dead.fbx",
+                _                 => null,
+            };
+            float extH = kind == Foliage.Conifer ? 9f : kind == Foliage.Dead ? 8f : 8f;
+            if (extPath != null)
+            {
+                var ext = LoadExternalModel(extPath, extH, FitAxis.Y);
+                if (ext != null)
+                {
+                    ext.name = kind.ToString();
+                    var pf = PrefabUtility.SaveAsPrefabAsset(ext, p);
+                    Object.DestroyImmediate(ext);
+                    return pf;
+                }
+            }
+
             var go = new GameObject(kind.ToString());
             void Trunk(float rad, float hgt, string mat)
             {
@@ -1170,51 +1323,67 @@ namespace Ironfield.EditorTools
 
         static void ScatterRuins(Terrain terrain)
         {
-            var ruins = AssetDatabase.LoadAssetAtPath<GameObject>(ArtRuins);
             var parent = new GameObject("Village").transform;
             var rng = new System.Random(20260910);
-            string[] names = { "Ruin_WallLong", "Ruin_WallCorner", "Ruin_RubblePile", "Ruin_HouseShell" };
-            var concrete = MakeUnlit(new Color(0.52f, 0.50f, 0.46f), "concrete");
-            var concreteDmg = MakeUnlit(new Color(0.40f, 0.37f, 0.33f), "concrete_dmg");
             var scorch = MakeUnlit(new Color(0.08f, 0.07f, 0.06f), "scorch");
             var sand = MakeUnlit(new Color(0.42f, 0.37f, 0.24f), "sandbag");
             var carDark = MakeUnlit(new Color(0.06f, 0.06f, 0.06f), "burntcar");
+
+            // CC0/CC-BY building prefabs, sized once
+            GameObject BuildingPrefab(string file, float widthM)
+            {
+                string pp = PrefabDir + "/" + Path.GetFileNameWithoutExtension(file) + ".prefab";
+                var ex = AssetDatabase.LoadAssetAtPath<GameObject>(pp);
+                if (ex != null) return ex;
+                var m = LoadExternalModel(ExtDir + file, widthM, FitAxis.XZ);
+                if (m == null) return null;
+                var pf = PrefabUtility.SaveAsPrefabAsset(m, pp);
+                Object.DestroyImmediate(m);
+                return pf;
+            }
+            var houses = new[]
+            {
+                BuildingPrefab("bld_house.fbx", 11f),
+                BuildingPrefab("bld_block.fbx", 20f),
+            };
+            bool haveModels = System.Array.Exists(houses, h => h != null);
 
             Vector3 centre = new(40f, 0f, 0f);
             Vector3 along = new Vector3(0.30f, 0f, 1f).normalized;
             Vector3 side = Vector3.Cross(Vector3.up, along);
 
             // --- buildings in two rows along the road -----------------
-            for (int i = 0; i < 40; i++)
+            for (int i = 0; i < 26; i++)
             {
-                float t = (i / 2) * 18f - 162f + (float)rng.NextDouble() * 7f;
-                float lane = (i % 2 == 0 ? -1f : 1f) * (15f + (float)rng.NextDouble() * 12f);
+                float t = (i / 2) * 26f - 156f + (float)rng.NextDouble() * 8f;
+                float lane = (i % 2 == 0 ? -1f : 1f) * (18f + (float)rng.NextDouble() * 14f);
                 Vector3 c = centre + along * t + side * lane
                             + new Vector3((float)rng.NextDouble() * 5f, 0, (float)rng.NextDouble() * 5f);
                 c.y = SampleHeight(terrain, c);
 
                 GameObject piece;
-                if (ruins != null)
+                if (haveModels)
                 {
-                    piece = (GameObject)PrefabUtility.InstantiatePrefab(ruins);
-                    string want = names[rng.Next(names.Length)];
-                    foreach (Transform ch in piece.transform)
-                        ch.gameObject.SetActive(ch.name == want);
+                    var src = houses[rng.Next(houses.Length)] ?? houses[0];
+                    piece = (GameObject)PrefabUtility.InstantiatePrefab(src);
+                    piece.transform.localScale *= 0.85f + (float)rng.NextDouble() * 0.5f;
                 }
                 else
                 {
                     piece = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    piece.transform.localScale = new Vector3(6, 3, 0.4f);
+                    piece.transform.localScale = new Vector3(8, 6, 8);
                 }
                 piece.transform.SetParent(parent);
                 piece.transform.position = c;
                 piece.transform.rotation = Quaternion.LookRotation(lane < 0 ? side : -side, Vector3.up)
-                    * Quaternion.Euler(0, (float)rng.NextDouble() * 26f - 13f, 0);
-                piece.transform.localScale *= 1.2f + (float)rng.NextDouble() * 0.8f;
+                    * Quaternion.Euler(0, (float)rng.NextDouble() * 30f - 15f, 0);
 
-                var mat = rng.NextDouble() < 0.3 ? scorch : (rng.NextDouble() < 0.5 ? concreteDmg : concrete);
-                foreach (var r in piece.GetComponentsInChildren<MeshRenderer>())
-                    r.sharedMaterial = mat;
+                // war damage: char ~35% of them, tilt a few
+                if (rng.NextDouble() < 0.35)
+                    foreach (var r in piece.GetComponentsInChildren<MeshRenderer>())
+                        r.sharedMaterial = scorch;
+                if (rng.NextDouble() < 0.25)
+                    piece.transform.rotation *= Quaternion.Euler(rng.Next(-5, 6), 0, rng.Next(-8, 9));
 
                 SetLayerRecursive(piece, GameLayers.Environment);
                 if (piece.GetComponentInChildren<Collider>() == null)

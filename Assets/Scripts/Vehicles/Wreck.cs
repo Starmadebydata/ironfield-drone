@@ -19,7 +19,10 @@ namespace Ironfield.Vehicles
         public Rigidbody[] debris;
         public float debrisImpulse = 6f;
         public AudioClip destroyedSfx;
+        [Tooltip("When there is no separate wreck mesh, char the intact meshes in place instead.")]
+        public bool charInPlace = true;
 
+        static Material s_charred;
         bool _done;
 
         public void Trigger(DamageInfo info)
@@ -27,8 +30,28 @@ namespace Ironfield.Vehicles
             if (_done) return;
             _done = true;
 
-            if (intactVisual) intactVisual.SetActive(false);
-            if (wreckedVisual) wreckedVisual.SetActive(true);
+            if (wreckedVisual)
+            {
+                if (intactVisual) intactVisual.SetActive(false);
+                wreckedVisual.SetActive(true);
+            }
+            else if (charInPlace && intactVisual)
+            {
+                if (s_charred == null)
+                    s_charred = new Material(Shader.Find("Standard"))
+                    {
+                        color = new Color(0.05f, 0.045f, 0.04f)
+                    };
+                foreach (var r in intactVisual.GetComponentsInChildren<Renderer>())
+                {
+                    var mats = new Material[r.sharedMaterials.Length];
+                    for (int i = 0; i < mats.Length; i++) mats[i] = s_charred;
+                    r.sharedMaterials = mats;
+                }
+                // slump it a bit
+                intactVisual.transform.localRotation *= Quaternion.Euler(
+                    Random.Range(-4f, 4f), 0f, Random.Range(-6f, 6f));
+            }
 
             if (fireSmokePrefab)
             {
