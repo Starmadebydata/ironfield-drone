@@ -440,10 +440,10 @@ namespace Ironfield.EditorTools
             var sun = sunGo.AddComponent<Light>();
             sun.type = LightType.Directional;
             sun.color = new Color(1f, 0.96f, 0.86f);
-            sun.intensity = 1.25f;
+            sun.intensity = 1.2f;
             sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.75f;
-            sunGo.transform.rotation = Quaternion.Euler(26f, 42f, 0f);   // low-ish afternoon
+            sun.shadowStrength = 0.7f;
+            sunGo.transform.rotation = Quaternion.Euler(48f, 35f, 0f);   // mid-afternoon, above the frame
             RenderSettings.sun = sun;
             RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Trilight;
             RenderSettings.ambientSkyColor = new Color(0.60f, 0.68f, 0.80f);
@@ -639,10 +639,10 @@ namespace Ironfield.EditorTools
                 return tl;
             }
 
-            var grass = L("grass", new Color(0.33f, 0.38f, 0.20f), 0.10f, 14f);
-            var dry = L("dry", new Color(0.52f, 0.46f, 0.30f), 0.09f, 18f);
-            var dirt = L("dirt", new Color(0.40f, 0.32f, 0.22f), 0.07f, 9f);
-            data.terrainLayers = new[] { grass, dry, dirt };
+            var grass = L("grass", new Color(0.30f, 0.37f, 0.18f), 0.11f, 13f);
+            var dry = L("dry", new Color(0.55f, 0.48f, 0.31f), 0.09f, 17f);
+            var road = L("road", new Color(0.31f, 0.28f, 0.24f), 0.05f, 7f);
+            data.terrainLayers = new[] { grass, dry, road };
 
             int aw = data.alphamapResolution;
             var maps = new float[aw, aw, 3];
@@ -662,8 +662,7 @@ namespace Ironfield.EditorTools
                 float g = Mathf.Clamp01(1f - patch * 1.3f);
                 float d = Mathf.Clamp01(patch * 1.3f - 0.2f);
 
-                float road = RoadMask(new Vector3(wx, 0, wz), waypoints, 9f, 5f);
-                float roadv = road;
+                float roadv = RoadMask(new Vector3(wx, 0, wz), waypoints, 7f, 4f) * 6f;
 
                 float total = g + d + roadv + 1e-4f;
                 maps[y, x, 0] = g / total;
@@ -694,26 +693,28 @@ namespace Ironfield.EditorTools
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(p);
             if (existing != null) return existing;
 
+            // Scattered as regular scene objects (not terrain trees), so pivot
+            // control is easy: empty root at ground level, visual parts above it.
             var go = new GameObject("Tree");
             var trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             trunk.name = "Trunk";
             trunk.transform.SetParent(go.transform, false);
-            trunk.transform.localScale = new Vector3(0.5f, 3f, 0.5f);
-            trunk.transform.localPosition = new Vector3(0, 3f, 0);
+            trunk.transform.localScale = new Vector3(0.45f, 2.4f, 0.45f);
+            trunk.transform.localPosition = new Vector3(0, 2.4f, 0);   // base at y=0
             Object.DestroyImmediate(trunk.GetComponent<Collider>());
-            trunk.GetComponent<MeshRenderer>().sharedMaterial = MakeUnlit(new Color(0.28f, 0.21f, 0.14f), "bark");
+            trunk.GetComponent<MeshRenderer>().sharedMaterial = MakeUnlit(new Color(0.26f, 0.19f, 0.13f), "bark");
 
             for (int i = 0; i < 2; i++)
             {
                 var canopy = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 canopy.name = "Canopy" + i;
                 canopy.transform.SetParent(go.transform, false);
-                float s = 4.5f - i * 1.4f;
-                canopy.transform.localScale = new Vector3(s, s * 0.9f, s);
-                canopy.transform.localPosition = new Vector3(0, 6f + i * 1.8f, 0);
+                float s = 4.8f - i * 1.6f;
+                canopy.transform.localScale = new Vector3(s, s * 0.85f, s);
+                canopy.transform.localPosition = new Vector3(0, 5.2f + i * 1.7f, 0);
                 Object.DestroyImmediate(canopy.GetComponent<Collider>());
                 canopy.GetComponent<MeshRenderer>().sharedMaterial =
-                    MakeUnlit(new Color(0.20f + i * 0.05f, 0.30f + i * 0.04f, 0.14f), "leaf" + i);
+                    MakeUnlit(new Color(0.17f + i * 0.05f, 0.27f + i * 0.04f, 0.12f), "leaf" + i);
             }
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(go, p);
@@ -724,39 +725,34 @@ namespace Ironfield.EditorTools
         static void ScatterTrees(Terrain terrain, List<Transform> waypoints)
         {
             var tree = BuildTreePrefab();
-            var data = terrain.terrainData;
-            data.treePrototypes = new[] { new TreePrototype { prefab = tree } };
-            data.RefreshPrototypes();
-
+            var parent = new GameObject("Trees").transform;
             var rng = new System.Random(4242);
-            var instances = new List<TreeInstance>();
             Vector3 tPos = terrain.transform.position;
-            Vector3 tSize = data.size;
+            Vector3 tSize = terrain.terrainData.size;
+            int placed = 0;
 
-            for (int i = 0; i < 1400; i++)
+            for (int i = 0; i < 6000 && placed < 900; i++)
             {
                 float nx = (float)rng.NextDouble();
                 float nz = (float)rng.NextDouble();
                 Vector3 world = new Vector3(tPos.x + nx * tSize.x, 0, tPos.z + nz * tSize.z);
 
-                if (RoadMask(world, waypoints, 16f, 10f) > 0.05f) continue;          // clear of road
-                if (Vector3.Distance(world, new Vector3(40, 0, 0)) < 70f) continue;  // clear of village
-                // clumping: skip some to leave clearings
-                if (Mathf.PerlinNoise(world.x * 0.02f, world.z * 0.02f) < 0.42f) continue;
+                if (RoadMask(world, waypoints, 15f, 10f) > 0.05f) continue;           // off the road
+                if (Vector3.Distance(world, new Vector3(40, 0, 0)) < 65f) continue;   // off the village
+                // woods in bands, clearings between
+                if (Mathf.PerlinNoise(world.x * 0.010f + 5f, world.z * 0.010f + 2f) < 0.45f) continue;
 
-                float scale = 0.7f + (float)rng.NextDouble() * 0.9f;
-                instances.Add(new TreeInstance
-                {
-                    position = new Vector3(nx, 0f, nz),
-                    prototypeIndex = 0,
-                    widthScale = scale,
-                    heightScale = scale * (0.9f + (float)rng.NextDouble() * 0.3f),
-                    color = Color.white,
-                    lightmapColor = Color.white,
-                });
+                world.y = SampleHeight(terrain, world);
+                var t = (GameObject)PrefabUtility.InstantiatePrefab(tree);
+                t.transform.SetParent(parent);
+                t.transform.position = world;
+                float s = 0.8f + (float)rng.NextDouble() * 0.9f;
+                t.transform.localScale = new Vector3(s, s * (0.9f + (float)rng.NextDouble() * 0.4f), s);
+                t.transform.rotation = Quaternion.Euler(0, (float)rng.NextDouble() * 360f, 0);
+                SetLayerRecursive(t, GameLayers.Environment);
+                placed++;
             }
-            data.SetTreeInstances(instances.ToArray(), true);
-            terrain.Flush();
+            StaticBatchingUtility.Combine(parent.gameObject);
         }
 
         static float SampleHeight(Terrain t, Vector3 world)
