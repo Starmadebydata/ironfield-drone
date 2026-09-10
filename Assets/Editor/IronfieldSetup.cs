@@ -1364,11 +1364,10 @@ namespace Ironfield.EditorTools
                 Object.DestroyImmediate(m);
                 return pf;
             }
-            var houses = new[]
-            {
-                BuildingPrefab("bld_house.fbx", 11f),
-                BuildingPrefab("bld_block.fbx", 20f),
-            };
+            var hHouse = BuildingPrefab("bld_house.fbx", 12f);
+            var hBlock = BuildingPrefab("bld_block.fbx", 22f);
+            // mostly small houses, the odd apartment block
+            var houses = new[] { hHouse, hHouse, hHouse, hBlock };
             bool haveModels = System.Array.Exists(houses, h => h != null);
 
             Vector3 centre = new(40f, 0f, 0f);
@@ -1376,10 +1375,10 @@ namespace Ironfield.EditorTools
             Vector3 side = Vector3.Cross(Vector3.up, along);
 
             // --- buildings in two rows along the road -----------------
-            for (int i = 0; i < 26; i++)
+            for (int i = 0; i < 22; i++)
             {
-                float t = (i / 2) * 26f - 156f + (float)rng.NextDouble() * 8f;
-                float lane = (i % 2 == 0 ? -1f : 1f) * (18f + (float)rng.NextDouble() * 14f);
+                float t = (i / 2) * 34f - 170f + (float)rng.NextDouble() * 10f;
+                float lane = (i % 2 == 0 ? -1f : 1f) * (24f + (float)rng.NextDouble() * 16f);
                 Vector3 c = centre + along * t + side * lane
                             + new Vector3((float)rng.NextDouble() * 5f, 0, (float)rng.NextDouble() * 5f);
                 c.y = SampleHeight(terrain, c);
@@ -1387,9 +1386,9 @@ namespace Ironfield.EditorTools
                 GameObject piece;
                 if (haveModels)
                 {
-                    var src = houses[rng.Next(houses.Length)] ?? houses[0];
+                    var src = houses[rng.Next(houses.Length)] ?? hHouse;
                     piece = (GameObject)PrefabUtility.InstantiatePrefab(src);
-                    piece.transform.localScale *= 0.85f + (float)rng.NextDouble() * 0.5f;
+                    piece.transform.localScale *= 0.8f + (float)rng.NextDouble() * 0.45f;
                 }
                 else
                 {
