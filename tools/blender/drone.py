@@ -1,8 +1,9 @@
 """Blockout FPV / attack quad -> Assets/Art/Drone/Drone.fbx
 
-Objects (kept separate so Unity can spin the props and mount a camera):
-  Drone_Body, Drone_Arm_[FL/FR/RL/RR], Drone_Prop_[FL/FR/RL/RR], Drone_CamPod
-Rough real-world size: ~0.35 m motor-to-motor.
+Chunkier "attack quad" read: deep centre body + battery, tapered arms, fat
+motors, 3-blade props (SEPARATE objects so Unity can spin them), an underslung
+warhead, skids, a rear antenna and a forward camera pod.
+Rough real-world size: ~0.55 m motor-to-motor.
 """
 import math
 import os
@@ -16,56 +17,98 @@ def build():
     C.reset_scene()
     parts = []
 
-    body = C.add_box("Drone_Body", (0.12, 0.16, 0.05), location=(0, 0, 0.10),
+    # --- centre body ------------------------------------------------------
+    body = C.add_box("Drone_Body", (0.17, 0.24, 0.085), location=(0, 0, 0.135),
                      material="drone_carbon")
-    C.bevel(body, width=0.012, segments=2)
+    C.bevel(body, width=0.016, segments=2)
     parts.append(body)
 
-    stack = C.add_box("Drone_Stack", (0.05, 0.05, 0.03), location=(0, 0, 0.14),
-                      material="drone_accent")
-    parts.append(stack)
+    battery = C.add_box("Drone_Battery", (0.11, 0.15, 0.05),
+                        location=(0, -0.02, 0.185), material="drone_accent")
+    C.bevel(battery, width=0.008, segments=1)
+    parts.append(battery)
 
-    pod = C.add_wedge("Drone_CamPod", (0.05, 0.06, 0.05), location=(0, 0.09, 0.12),
-                      material="drone_carbon")
+    canopy = C.add_wedge("Drone_Canopy", (0.13, 0.14, 0.07),
+                         location=(0, 0.05, 0.175), material="drone_carbon")
+    parts.append(canopy)
+
+    # --- forward camera pod --------------------------------------------
+    pod = C.add_wedge("Drone_CamPod", (0.07, 0.09, 0.06),
+                      location=(0, 0.14, 0.15), material="drone_carbon")
     parts.append(pod)
-    lens = C.add_cylinder("Drone_Lens", 0.018, 0.01, location=(0, 0.13, 0.13),
+    lens = C.add_cylinder("Drone_Lens", 0.024, 0.012,
+                          location=(0, 0.19, 0.16),
                           rotation=(math.radians(90), 0, 0), material="glass_dark")
     parts.append(lens)
 
-    arm_len = 0.14
-    motor_h = 0.035
-    corners = {
-        "FL": (-1, 1), "FR": (1, 1), "RL": (-1, -1), "RR": (1, -1),
-    }
+    # --- underslung warhead ------------------------------------------
+    wh_body = C.add_cylinder("Drone_Warhead", 0.055, 0.16,
+                             location=(0, 0.02, 0.055),
+                             rotation=(math.radians(90), 0, 0), material="metal_grey")
+    parts.append(wh_body)
+    wh_tip = C.add_cylinder("Drone_WarheadTip", 0.055, 0.06,
+                            location=(0, 0.13, 0.055),
+                            rotation=(math.radians(90), 0, 0), verts=16,
+                            material="drone_accent")
+    parts.append(wh_tip)
+
+    # --- arms + motors + props -------------------------------------
+    motor_h = 0.05
+    corners = {"FL": (-1, 1), "FR": (1, 1), "RL": (-1, -1), "RR": (1, -1)}
     for tag, (sx, sy) in corners.items():
         ang = math.atan2(sy, sx)
-        ax = sx * 0.085
-        ay = sy * 0.11
-        arm = C.add_box(f"Drone_Arm_{tag}", (0.022, arm_len, 0.015),
-                        location=(ax * 0.5, ay * 0.5, 0.10),
+        # arm from body corner out to motor
+        ax, ay = sx * 0.10, sy * 0.135
+        mx, my = sx * 0.24, sy * 0.30
+        arm = C.add_box(f"Drone_Arm_{tag}", (0.045, 0.30, 0.028),
+                        location=((ax + mx) * 0.5, (ay + my) * 0.5, 0.125),
                         rotation=(0, 0, -ang + math.radians(90)),
                         material="drone_carbon")
         parts.append(arm)
 
-        mx = sx * 0.16
-        my = sy * 0.20
-        motor = C.add_cylinder(f"Drone_Motor_{tag}", 0.017, motor_h,
-                               location=(mx, my, 0.11), material="metal_grey")
+        boom = C.add_cylinder(f"Drone_Boom_{tag}", 0.016, 0.20,
+                              location=((ax + mx) * 0.5, (ay + my) * 0.5, 0.125),
+                              rotation=(math.radians(90), 0, -ang + math.radians(90)),
+                              material="metal_grey")
+        parts.append(boom)
+
+        motor = C.add_cylinder(f"Drone_Motor_{tag}", 0.026, motor_h,
+                               location=(mx, my, 0.135), material="metal_grey")
         parts.append(motor)
+        motor_top = C.add_cylinder(f"Drone_MotorBell_{tag}", 0.030, 0.02,
+                                   location=(mx, my, 0.165), material="drone_accent")
+        parts.append(motor_top)
 
-        prop = C.add_box(f"Drone_Prop_{tag}", (0.13, 0.014, 0.004),
-                         location=(mx, my, 0.135), material="drone_carbon")
-        # props stay SEPARATE objects (not joined) so Unity can spin them
+        # 3-blade prop, kept SEPARATE (not joined) so Unity spins it
+        hub = C.add_cylinder(f"Drone_Prop_{tag}", 0.02, 0.012,
+                             location=(mx, my, 0.185), material="drone_carbon")
+        blades = [hub]
+        for b in range(3):
+            ba = math.radians(b * 120)
+            blade = C.add_box(f"_blade_{tag}_{b}", (0.19, 0.028, 0.005),
+                              location=(mx, my, 0.185),
+                              rotation=(0, 0, ba), material="drone_carbon")
+            blades.append(blade)
+        prop = C.join(blades, f"Drone_Prop_{tag}")
         C.set_origin_to_base(prop)
-        prop.location = (mx, my, 0.135)
+        prop.location = (mx, my, 0.185)
 
-    legs = []
+    # --- skids ---------------------------------------------------------
     for sx in (-1, 1):
-        leg = C.add_box(f"Drone_Skid_{'L' if sx < 0 else 'R'}",
-                        (0.012, 0.18, 0.012), location=(sx * 0.07, 0, 0.03),
-                        material="drone_carbon")
-        legs.append(leg)
-    parts += legs
+        rail = C.add_box(f"Drone_Skid_{'L' if sx < 0 else 'R'}",
+                         (0.02, 0.30, 0.018), location=(sx * 0.10, 0, 0.02),
+                         material="drone_carbon")
+        parts.append(rail)
+        for sy in (-1, 1):
+            strut = C.add_cylinder(
+                f"Drone_Strut_{'L' if sx < 0 else 'R'}{'F' if sy > 0 else 'B'}",
+                0.008, 0.09, location=(sx * 0.10, sy * 0.1, 0.07),
+                material="drone_carbon")
+            parts.append(strut)
+
+    ant = C.add_cylinder("Drone_Antenna", 0.006, 0.16,
+                         location=(0, -0.13, 0.22), material="metal_grey")
+    parts.append(ant)
 
     hull = C.join(parts, "Drone_Body")
     C.set_origin_to_base(hull)
