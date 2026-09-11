@@ -1,9 +1,11 @@
+using Ironfield.Core;
 using Ironfield.Drone;
 using UnityEngine;
 
 namespace Ironfield.Fx
 {
-    /// <summary>Drives a motor AudioSource's pitch/volume from the drone's speed.</summary>
+    /// <summary>Drives a motor AudioSource's pitch/volume from the drone's speed,
+    /// scaled by the user's engine-volume setting.</summary>
     [RequireComponent(typeof(AudioSource))]
     public class MotorPitch : MonoBehaviour
     {
@@ -22,7 +24,7 @@ namespace Ironfield.Fx
             if (_d == null || _a == null) return;
             float s = Mathf.Clamp01(_d.Speed / speedForMaxPitch);
             _a.pitch = Mathf.Lerp(0.8f, 2.1f, s) + (_d.Boosting ? 0.3f : 0f);
-            _a.volume = Mathf.Lerp(0.3f, 0.7f, s);
+            _a.volume = Mathf.Lerp(0.3f, 0.7f, s) * GameSettings.EngineVolume;
         }
     }
 }

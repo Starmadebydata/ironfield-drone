@@ -5,7 +5,6 @@ using Ironfield.Drone;
 using Ironfield.Targeting;
 using Ironfield.Vehicles;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Ironfield.Mission
 {
@@ -47,6 +46,8 @@ namespace Ironfield.Mission
 
         public int Score { get; private set; }
         public string Grade { get; private set; } = "";
+
+        void Awake() => Ironfield.Core.GameSettings.Load();
 
         void Start()
         {
@@ -183,16 +184,6 @@ namespace Ironfield.Mission
         {
             go.layer = layer;
             foreach (Transform c in go.transform) SetLayer(c.gameObject, layer);
-        }
-
-        public void Restart() => SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-        public void Quit()
-        {
-#if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-#else
-            Application.Quit();
-#endif
         }
     }
 }

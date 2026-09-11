@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Ironfield.Combat;
+using Ironfield.Core;
 using Ironfield.Drone;
 using Ironfield.Targeting;
 using Ironfield.Vehicles;
@@ -56,8 +57,10 @@ namespace Ironfield.Mission
 #if ENABLE_INPUT_SYSTEM
             _helpHeld = Keyboard.current != null && Keyboard.current.hKey.isPressed;
 #endif
-            // hide + lock the OS cursor while flying so mouse drives the drone
-            bool flying = mission != null && mission.State == MissionState.Active;
+            // hide + lock the OS cursor while flying so mouse drives the drone —
+            // unless a modal menu (pause / first-run tip) needs the cursor free.
+            bool blocked = PauseMenu.IsPaused || FirstRunTip.Showing;
+            bool flying = mission != null && mission.State == MissionState.Active && !blocked;
             Cursor.lockState = flying ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !flying;
         }
@@ -394,10 +397,12 @@ namespace Ironfield.Mission
             for (int i = 0; i < lines.Length; i++)
                 GUI.Label(new Rect(0, h * 0.24f + 58 + i * 24, w, 22), lines[i], _center);
 
-            if (GUI.Button(new Rect(w * 0.5f - 112, h * 0.62f, 104, 40), "Restart"))
-                mission.Restart();
-            if (GUI.Button(new Rect(w * 0.5f + 8, h * 0.62f, 104, 40), "Quit"))
-                mission.Quit();
+            if (GUI.Button(new Rect(w * 0.5f - 172, h * 0.62f, 104, 40), "Restart"))
+                SceneFlow.RestartCurrent();
+            if (GUI.Button(new Rect(w * 0.5f - 60, h * 0.62f, 120, 40), "Main Menu"))
+                SceneFlow.LoadMainMenu();
+            if (GUI.Button(new Rect(w * 0.5f + 68, h * 0.62f, 104, 40), "Quit"))
+                SceneFlow.Quit();
         }
     }
 }

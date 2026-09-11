@@ -13,22 +13,42 @@
 
 没有这些,现在连"一个游戏"都算不上,只是一个能跑的场景。
 
-1. **主菜单场景** `MainMenu.unity`:开始 / 设置 / 退出。`SceneFlowManager` 负责
-   场景切换,替代现在"编辑器里直接开 Mission01 按 Play"的方式。
-2. **暂停菜单**:Esc 呼出,继续/重开/回主菜单/设置,同时把 `Time.timeScale`
-   和鼠标锁定状态管好(现在飞行时鼠标是锁定的,没有暂停通路会很难受)。
-3. **设置菜单**:音量(主/音效/引擎)、鼠标灵敏度(`DroneController.aimSensitivity`
-   已经是字段,接进 UI 即可)、画质预设、Y轴反转。用 `PlayerPrefs` 存。
-4. **结果流程收尾**:现在的结束面板(HUD IMGUI)加"重开/回菜单"按钮,而不是
-   停在那不能操作。
-5. **UI 技术栈换血**:IMGUI → uGUI + TextMeshPro(已装包未用)。这不是美化,
-   是因为 IMGUI 在最终构建里字体/缩放/输入法都有坑,且不可能做出干净的按钮
-   交互。`HudController` 拆成:`HudView`(uGUI 呈现)+ 现有逻辑保留。
-6. **首次运行引导**:目前控制说明靠"按住 H",新玩家大概率错过。开局强制
-   一屏简短操作提示(暂停可跳过)。
+**状态(2026-09-11):1、2、3、4、6 已实现;5 做了范围调整,见下。**
+
+1. ✅ **主菜单场景** `MainMenu.unity`:开始 / 设置 / 退出。`Ironfield.Core.SceneFlow`
+   负责场景切换(`LoadMainMenu` / `LoadMission` / `RestartCurrent` / `Quit`),
+   替代了之前"编辑器里直接开 Mission01 按 Play"的方式。构建的 Build Settings
+   现在是 `MainMenu` → `Mission01`,打包出的游戏会先进主菜单。
+2. ✅ **暂停菜单**(`PauseMenu.cs`):Esc 呼出,继续/操作说明/设置/重开/回
+   主菜单,`Time.timeScale` 和鼠标锁定(`HudController` 检查
+   `PauseMenu.IsPaused`)都接好了。
+3. ✅ **设置菜单**(`SettingsGUI.cs` + `GameSettings.cs`):主/音效/引擎音量、
+   鼠标灵敏度(接入 `DroneController`)、Y轴反转、画质预设,`PlayerPrefs` 持久化。
+   引擎音量已经在接到 `MotorPitch`;音效音量的滑条先留着——游戏里目前还没有
+   真正的 SFX 音源可接(P1 加真实音效时接上)。
+4. ✅ **结果流程收尾**:结束面板(HudController.DrawEndPanel)加了 "Main Menu"
+   按钮,和已有的 Restart/Quit 一起走 `SceneFlow`。
+5. ⚠️ **范围调整,IMGUI → uGUI + TextMeshPro 未做**:新写的主菜单/暂停/设置/
+   首次引导全部用 IMGUI(跟现有 HUD 一致),没有换成 uGUI+TMP。原因:这次是
+   无头(headless batchmode)迭代,没有交互式编辑器在场做可视化搭 UI 和调
+   TextMeshPro 的 Essential Resources 导入——那一步历史上就是手动/交互式流程,
+   之前 glTFast 包在这个沙箱里因为网络受限直接失败过(见 CREDITS.md 相关提交),
+   TMP 虽是内置包不用联网,但资源导入路径没有验证过,贸然引入会把风险重新
+   引回本该稳的 P0。IMGUI 这条路已经在结束面板上验证好用(按钮可点、无障碍)。
+   **保留为 P2 任务**:等你有空在编辑器里过一遍界面观感的时候,再把这几个
+   IMGUI 面板换成 uGUI+TMP 或做视觉设计,那时候可以顺手定好美术风格。
+6. ✅ **首次运行引导**(`FirstRunTip.cs`):第一次进任务前强制一屏操作提示,
+   `PlayerPrefs` 记一次性标记,暂停菜单里"操作说明"可以随时重看。
+   注意:没有用 `Time.timeScale=0` 冻结(第一版这样做过,发现会把 PlayMode
+   自动化测试里基于 `Time.time` 的等待循环挂死——测试环境里从没设置过"已读"
+   标记,所以每次都会显示这个提示)。改成只禁用无人机输入,不冻结时间。
 
 验收标准:一个没读过 README 的人,双击构建出的 .app,能自己摸到"开始
 游戏→设置灵敏度→打完一关→看到结果→回菜单"整条链路,不需要你在场解释。
+**这条链路本身已经打通并跑通了自动化测试**(EditMode 9/9、PlayMode 3/3,新增
+一条 `MainMenu_loads_without_errors` 冒烟测试);还没做过的是真人手动过一遍
+交互手感(按钮大小/点击区域/文字排版),建议你在编辑器里打开 `MainMenu.unity`
+亲自点一遍。
 
 ## P1 — 让它是"一款游戏"而不是"一关"(核心内容量)
 

@@ -6,6 +6,7 @@ using Ironfield.Drone;
 using Ironfield.Fx;
 using Ironfield.Mission;
 using Ironfield.Targeting;
+using Ironfield.UI;
 using Ironfield.Vehicles;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -46,6 +47,7 @@ namespace Ironfield.EditorTools
         const string SettingsDir = "Assets/Settings";
         const string ScenesDir = "Assets/Scenes";
         const string ScenePath = ScenesDir + "/Mission01.unity";
+        const string MainMenuScenePath = ScenesDir + "/MainMenu.unity";
 
         static readonly string[] WantTags = { "Drone", "Vehicle", "LaunchPoint" };
         // index -> name; 6..9 are the first free user layer slots
@@ -137,10 +139,19 @@ namespace Ironfield.EditorTools
             AssetDatabase.Refresh();
 
             BuildScene();
+            BuildMainMenuScene();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            Debug.Log("[Ironfield] Build complete. Open " + ScenePath);
+
+            // MainMenu first so a real build boots there, not straight into Mission01.
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene(MainMenuScenePath, true),
+                new EditorBuildSettingsScene(ScenePath, true),
+            };
+
+            Debug.Log("[Ironfield] Build complete. Open " + MainMenuScenePath);
         }
 
         /// <summary>
@@ -832,16 +843,35 @@ namespace Ironfield.EditorTools
             hud.targeting = targeting;
             hud.cameraRig = rig;
 
+            var pause = mgrGo.AddComponent<PauseMenu>();
+            pause.mission = mgr;
+            var tip = mgrGo.AddComponent<FirstRunTip>();
+            tip.mission = mgr;
+
             rig.Bind(null);
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
+        }
 
-            var list = new List<EditorBuildSettingsScene>
-            {
-                new(ScenePath, true),
-            };
-            EditorBuildSettings.scenes = list.ToArray();
+        /// <summary>Title screen: Start / Settings / Quit. Its own tiny scene so a
+        /// build boots there instead of straight into Mission01.</summary>
+        static void BuildMainMenuScene()
+        {
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            var camGo = new GameObject("MainCamera");
+            var cam = camGo.AddComponent<Camera>();
+            cam.clearFlags = CameraClearFlags.SolidColor;
+            cam.backgroundColor = new Color(0.10f, 0.11f, 0.10f);
+            cam.tag = "MainCamera";
+
+            var menuGo = new GameObject("MainMenu");
+            menuGo.AddComponent<MainMenuController>();
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            Directory.CreateDirectory(ScenesDir);
+            EditorSceneManager.SaveScene(scene, MainMenuScenePath);
         }
 
         static readonly Vector3 TerrainOrigin = new(-512, 0, -512);

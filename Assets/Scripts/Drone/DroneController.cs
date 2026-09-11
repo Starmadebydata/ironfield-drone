@@ -1,4 +1,5 @@
 using Ironfield.Combat;
+using Ironfield.Core;
 using UnityEngine;
 
 namespace Ironfield.Drone
@@ -75,8 +76,10 @@ namespace Ironfield.Drone
             Precision = _in.Precision;
 
             // --- integrate the mouse reticle ------------------------------
-            float sens = aimSensitivity * (Precision ? precisionScale : 1f);
-            _aim += _in.AimDelta * sens;
+            float sens = aimSensitivity * GameSettings.AimSensitivity * (Precision ? precisionScale : 1f);
+            Vector2 delta = _in.AimDelta;
+            if (GameSettings.InvertY) delta.y = -delta.y;
+            _aim += delta * sens;
             if (!useDebugInput)
             {
                 // spring back toward centre so hands-off = fly straight

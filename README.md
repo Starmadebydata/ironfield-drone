@@ -31,7 +31,11 @@ Steps 2 and 3 are also on the **Ironfield** editor menu once the project is open
 
 ## Play
 
-Open the project in Unity Hub, load `Assets/Scenes/Mission01.unity`, press Play.
+Open the project in Unity Hub, load `Assets/Scenes/MainMenu.unity`, press Play.
+"开始任务" drops you into `Mission01`; "设置" has volume / mouse sensitivity /
+Y-invert / quality; `Esc` in-mission pauses (resume, controls, settings, restart,
+main menu). First launch ever shows a one-time controls tip before you get
+control of the drone.
 
 **Mouse-aim flight.** The mouse moves an aim reticle inside the ring; the drone
 continuously turns its nose onto the reticle and flies where you point. Hands off

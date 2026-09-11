@@ -17,6 +17,9 @@ namespace Ironfield.Tests
         [UnityTest]
         public IEnumerator Drone_spawns_flies_forward_and_survives()
         {
+            // skip the first-run controls tip (it doesn't freeze time, but keep
+            // it out of the way of the OnGUI/state assumptions below)
+            PlayerPrefs.SetInt("ironfield.seenTutorial", 1);
             yield return SceneManager.LoadSceneAsync("Mission01", LoadSceneMode.Single);
             // let MissionManager.Begin() run (it waits one frame)
             for (int i = 0; i < 5; i++) yield return null;
@@ -52,6 +55,7 @@ namespace Ironfield.Tests
         [UnityTest]
         public IEnumerator Targeting_sees_the_convoy()
         {
+            PlayerPrefs.SetInt("ironfield.seenTutorial", 1);
             yield return SceneManager.LoadSceneAsync("Mission01", LoadSceneMode.Single);
             for (int i = 0; i < 5; i++) yield return null;
             foreach (var tt in Object.FindObjectsByType<Ironfield.Vehicles.VehicleTurret>(FindObjectsSortMode.None))
