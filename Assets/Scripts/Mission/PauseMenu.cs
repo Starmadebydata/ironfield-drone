@@ -113,18 +113,32 @@ namespace Ironfield.Mission
                 _showControls = false;
         }
 
+        static readonly string[] MouseKbLines =
+        {
+            "鼠标移动     瞄准 / 转向 —— 无人机朝你指的方向飞",
+            "左键         引爆战斗部",
+            "右键(按住)   精瞄(拉近 + 减速瞄准)",
+            "W / S        油门 / 刹车        Shift  加速",
+            "空格 / Ctrl  升降微调",
+            "Q / E        横滚               R      呼回",
+            "Esc          暂停 / 继续",
+        };
+        static readonly string[] GamepadLines =
+        {
+            "右摇杆       瞄准 / 转向 —— 无人机朝你指的方向飞",
+            "A / RB       引爆战斗部",
+            "左扳机(按住) 精瞄(拉近 + 减速瞄准)",
+            "左摇杆Y      油门 / 刹车        右扳机  加速",
+            "RB / LB      升降微调",
+            "左摇杆X      横滚               Y       呼回",
+            "Esc          暂停 / 继续",
+        };
+
+        /// <summary>Mouse+keyboard lines, or gamepad lines if that's what the
+        /// player was last actually using (Ironfield.Drone.DroneInput tracks it).</summary>
         internal static System.Collections.Generic.IEnumerable<(int, string)> ControlLines()
         {
-            string[] lines =
-            {
-                "鼠标移动     瞄准 / 转向 —— 无人机朝你指的方向飞",
-                "左键         引爆战斗部",
-                "右键(按住)   精瞄(拉近 + 减速瞄准)",
-                "W / S        油门 / 刹车        Shift  加速",
-                "空格 / Ctrl  升降微调",
-                "Q / E        横滚               R      呼回",
-                "Esc          暂停 / 继续",
-            };
+            string[] lines = Ironfield.Drone.DroneInput.LastWasGamepad ? GamepadLines : MouseKbLines;
             for (int i = 0; i < lines.Length; i++) yield return (i, lines[i]);
         }
     }

@@ -17,6 +17,8 @@ namespace Ironfield.Core
         const string KSens = "ironfield.aim.sensitivity";
         const string KInvert = "ironfield.aim.inverty";
         const string KQuality = "ironfield.quality";
+        const string KColorblind = "ironfield.a11y.colorblind";
+        const string KCameraShake = "ironfield.a11y.camerashake";
 
         public static float MasterVolume { get; private set; } = 1f;
         public static float SfxVolume { get; private set; } = 1f;
@@ -25,6 +27,10 @@ namespace Ironfield.Core
         public static float AimSensitivity { get; private set; } = 1f;
         public static bool InvertY { get; private set; }
         public static int QualityLevel { get; private set; }
+        /// <summary>Swaps HUD target/lock colours for a blue/orange palette
+        /// instead of red/green/yellow (safe for the common red-green forms).</summary>
+        public static bool ColorblindMode { get; private set; }
+        public static bool CameraShake { get; private set; } = true;
 
         static bool _loaded;
 
@@ -38,6 +44,8 @@ namespace Ironfield.Core
             AimSensitivity = PlayerPrefs.GetFloat(KSens, 1f);
             InvertY = PlayerPrefs.GetInt(KInvert, 0) != 0;
             QualityLevel = PlayerPrefs.GetInt(KQuality, QualitySettings.GetQualityLevel());
+            ColorblindMode = PlayerPrefs.GetInt(KColorblind, 0) != 0;
+            CameraShake = PlayerPrefs.GetInt(KCameraShake, 1) != 0;
             Apply();
         }
 
@@ -47,6 +55,8 @@ namespace Ironfield.Core
         public static void SetAimSensitivity(float v) { AimSensitivity = Mathf.Clamp(v, 0.3f, 2.5f); Save(); }
         public static void SetInvertY(bool v) { InvertY = v; Save(); }
         public static void SetQualityLevel(int v) { QualityLevel = Mathf.Max(0, v); Apply(); Save(); }
+        public static void SetColorblindMode(bool v) { ColorblindMode = v; Save(); }
+        public static void SetCameraShake(bool v) { CameraShake = v; Save(); }
 
         static void Apply()
         {
@@ -63,6 +73,8 @@ namespace Ironfield.Core
             PlayerPrefs.SetFloat(KSens, AimSensitivity);
             PlayerPrefs.SetInt(KInvert, InvertY ? 1 : 0);
             PlayerPrefs.SetInt(KQuality, QualityLevel);
+            PlayerPrefs.SetInt(KColorblind, ColorblindMode ? 1 : 0);
+            PlayerPrefs.SetInt(KCameraShake, CameraShake ? 1 : 0);
             PlayerPrefs.Save();
         }
 

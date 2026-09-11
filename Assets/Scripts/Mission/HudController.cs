@@ -155,16 +155,27 @@ namespace Ironfield.Mission
                     : Mathf.Clamp01(Mathf.Min(mission.TimeActive, 14f - mission.TimeActive) / 2f);
                 var hs = new GUIStyle(_small);
                 var hc = hs.normal.textColor; hc.a = fade; hs.normal.textColor = hc;
-                string[] keys =
-                {
-                    "MOUSE   aim / steer — the drone flies where you point",
-                    "LMB     detonate warhead",
-                    "RMB     precision (zoom + slow aim)",
-                    "W / S   throttle / brake     SHIFT   boost",
-                    "SPACE / CTRL   climb / descend trim",
-                    "Q / E   roll     R   recall",
-                    "(hold H for controls)",
-                };
+                string[] keys = DroneInput.LastWasGamepad
+                    ? new[]
+                    {
+                        "R-STICK   aim / steer — the drone flies where you point",
+                        "A / RB    detonate warhead",
+                        "L-TRIGGER precision (zoom + slow aim)",
+                        "L-STICK Y throttle / brake   R-TRIGGER  boost",
+                        "RB / LB   climb / descend trim",
+                        "L-STICK X roll    Y   recall",
+                        "(hold H for controls)",
+                    }
+                    : new[]
+                    {
+                        "MOUSE   aim / steer — the drone flies where you point",
+                        "LMB     detonate warhead",
+                        "RMB     precision (zoom + slow aim)",
+                        "W / S   throttle / brake     SHIFT   boost",
+                        "SPACE / CTRL   climb / descend trim",
+                        "Q / E   roll     R   recall",
+                        "(hold H for controls)",
+                    };
                 for (int i = 0; i < keys.Length; i++)
                     GUI.Label(new Rect(w - 260, h - 24 - (keys.Length - i) * 16, 250, 16), keys[i], hs);
             }
@@ -193,7 +204,7 @@ namespace Ironfield.Mission
             if (_hitMarker > 0f)
             {
                 float s = _hitMarker / 0.3f;
-                Color col = _hitWasKill ? new Color(1f, 0.3f, 0.2f) : Color.white;
+                Color col = _hitWasKill ? KillFlashColor() : Color.white;
                 col.a = Mathf.Clamp01(s);
                 DrawHitMarker(c, Mathf.Lerp(10f, 20f, 1f - s), col);
             }
@@ -213,6 +224,18 @@ namespace Ironfield.Mission
                 DrawEndPanel(w, h);
         }
 
+        // Blue/orange reads clearly for red-green colour blindness; the default
+        // red/yellow pair does not. GameSettings.ColorblindMode picks between them.
+        static Color NearestTargetColor() => GameSettings.ColorblindMode
+            ? new Color(1f, 0.55f, 0.05f) : new Color(1f, 0.35f, 0.2f);
+        static Color OtherTargetColor() => GameSettings.ColorblindMode
+            ? new Color(0.35f, 0.65f, 1f, 0.85f) : new Color(1f, 0.8f, 0.25f, 0.8f);
+        static Color LockColor(float lockProgress) => GameSettings.ColorblindMode
+            ? Color.Lerp(new Color(0.35f, 0.65f, 1f), new Color(1f, 0.55f, 0.05f), lockProgress)
+            : Color.Lerp(new Color(1f, 0.8f, 0.25f), new Color(1f, 0.25f, 0.15f), lockProgress);
+        static Color KillFlashColor() => GameSettings.ColorblindMode
+            ? new Color(1f, 0.55f, 0.05f) : new Color(1f, 0.3f, 0.2f);
+
         void DrawTargetMarkers(float w, float h)
         {
             var nearest = targeting != null ? targeting.CurrentTarget : null;
@@ -226,8 +249,7 @@ namespace Ironfield.Mission
                 float dist = Vector3.Distance(camPos, wp);
                 bool onScreen = sp.z > 0f && sp.x > 0 && sp.x < w && sp.y > 0 && sp.y < h;
                 bool isNearest = v == nearest;
-                Color col = isNearest ? new Color(1f, 0.35f, 0.2f)
-                                      : new Color(1f, 0.8f, 0.25f, 0.8f);
+                Color col = isNearest ? NearestTargetColor() : OtherTargetColor();
 
                 if (onScreen)
                 {
@@ -258,7 +280,7 @@ namespace Ironfield.Mission
             Vector2 p = new Vector2(sp.x, h - sp.y);
 
             float lp = targeting.LockProgress;
-            Color col = Color.Lerp(new Color(1f, 0.8f, 0.25f), new Color(1f, 0.25f, 0.15f), lp);
+            Color col = LockColor(lp);
             float box = Mathf.Lerp(44f, 24f, lp);
             DrawBracket(p, box, col, targeting.HasHardLock ? 3f : 2f);
 

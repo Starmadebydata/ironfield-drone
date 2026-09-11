@@ -1,3 +1,4 @@
+using Ironfield.Core;
 using UnityEngine;
 
 namespace Ironfield.Drone
@@ -82,6 +83,7 @@ namespace Ironfield.Drone
 
         public void Shake(float duration, float magnitude)
         {
+            if (!GameSettings.CameraShake) return;
             _shake = Mathf.Max(_shake, duration);
             _shakeMag = Mathf.Max(_shakeMag, magnitude);
         }

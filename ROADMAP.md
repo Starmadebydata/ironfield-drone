@@ -103,21 +103,48 @@ EditMode 单测(解锁链、最佳成绩、胜负不同结果)。EditMode 14/14�
 
 ## P2 — 打磨与工程债(让它经得起别人看)
 
-1. **URP 迁移**:Built-in → URP 是当初为了绕过 headless 包安装风险的临时
-   选择,现在项目稳定了,应该迁移以获得阴影质量/后处理生态/移动端可能性。
-   这是一次性的大改动,建议单独开分支做,迁移后重跑全部 EditMode/PlayMode
-   测试 + 截图 diff。
-2. **性能**:目前没有真机/构建后的帧率数据,只验证过编辑器截图。需要:
-   - Development Build 在目标机型跑一次 Profiler,确认 1000+ 树 + GPU
-     instancing 之后 draw call/帧时真的达标(参考:上一轮修复场景膨胀时顺手
-     开的 instancing,还没在构建里量过)。
-   - 简单 LOD(远处树/岩石用低模或直接 billboard)。
-3. **输入完善**:手柄支持已经在 `DroneInput` 里写了但没做**按键重绑定 UI**
-   和**输入设备自动切换提示**(现在切手柄玩家不知道该看哪套提示)。
-4. **可访问性最低限**:色盲友好的目标标记颜色、UI 缩放选项、可关闭镜头震动。
-5. **稳定性**:补充异常路径的 EditMode/PlayMode 测试(比如中途暂停/切场景
-   不留下悬挂订阅——`MissionManager`/`HudController` 目前靠 `OnDisable`
-   手动 unsubscribe,场景切换路径没测过)。
+**状态(2026-09-11):3(一半)、4(三分之二)、5 已实现;1、2 明确留到有交互式
+编辑器会话时再做——原因见各条。**
+
+1. ⛔ **URP 迁移:这次没做**。这本来就是路线图里标了"建议单独开分支做"的
+   一次性大改动——材质升级向导、自定义 `IronfieldPost.shader` 在 URP 下的
+   兼容性、光照参数重调,都需要边改边在编辑器里肉眼核对画面,而这次是纯
+   无头(headless batchmode)执行,没有交互式会话能做这种视觉验收。贸然做会
+   把"看起来对不对"这件事变成完全靠猜。继续按原计划留到有空开编辑器窗口
+   核对画面的时候单独做。
+2. ⛔ **真机性能 profiling / LOD:这次没做**。没有目标机型可供 Development
+   Build + Profiler 实测,盲写 LOD/billboard 是没有数据支撑的猜测性优化,
+   容易做了却优化错地方。场景膨胀那次修复顺手开的 GPU instancing 已经是
+   眼下能做的、有明确原理支撑的优化;再往下需要先有一台目标机器和一次真实
+   Profiler 记录。
+3. ⚠️ **输入完善,做了一半**:
+   - ✅ **输入设备自动切换提示**:`DroneInput` 现在跟踪最近一次有效输入来自
+     鼠标键盘还是手柄(`DroneInput.LastWasGamepad`),暂停菜单"操作说明"、
+     任务内右下角操作提示、开局的出击须知,三处文案会跟着切换成对应的
+     按键名(鼠标/WASD vs 右摇杆/ABXY)。
+   - ⛔ **按键重绑定 UI 没做**:手柄/键鼠这套输入是在 `DroneInput.Read()`
+     里直接轮询 `Keyboard.current`/`Gamepad.current` 的硬编码按键,没有
+     `.inputactions` 资产可绑定——真正支持重绑定需要先把整套输入迁到
+     Input Actions 架构,这是一次基础性重构,不是"顺手加个 UI"能带过的,
+     留到之后单独做。
+4. ⚠️ **可访问性,做了两项半**:
+   - ✅ 色盲友好目标标记颜色:设置里"色盲模式"开关,把目标框/锁定环/命中
+     闪光从红/黄换成蓝/橙(对红绿色盲更安全的经典配色对),默认关闭。
+   - ✅ 可关闭镜头震动:设置里"镜头震动"开关,关掉后 `DroneCameraRig.Shake`
+     直接不生效。
+   - ⛔ **UI 缩放选项没做**:游戏里好几个独立 MonoBehaviour 各自有自己的
+     `OnGUI`(菜单/暂停/HUD/首次引导),`GUIUtility.ScaleAroundPivot` 修改的
+     是全局 `GUI.matrix`,任何一处提前 `return`(现有代码里到处都是)就会让
+     缩放矩阵漏到下一个组件的 `OnGUI` 里,污染画面。要安全做这件事得先把
+     UI 收敛到一个根组件,或者干脆等 uGUI 迁移(P2 遗留任务)顺带解决。
+5. ✅ **稳定性**:新增 `StabilityTests.cs`(3 条 PlayMode)专门补"切场景/
+   暂停不留悬挂状态"这类此前真实踩过的坑——第一条直接回归测试了
+   `FirstRunTip` 那次冻结 `Time.timeScale` 搞挂自动化测试的问题类型(断言
+   任务场景一加载 `Time.timeScale` 必须是 1、`PauseMenu.IsPaused` 必须是
+   false);第二条断言连续三次重开任务场景不会残留重复的
+   `MissionManager`/`HudController`/`PauseMenu`;第三条专门测
+   `UiSfx`(DontDestroyOnLoad 单例)在"主菜单→任务→主菜单"这种真实会发生
+   的来回切换下不会产生重复实例。EditMode 14/14、PlayMode 8/8。
 
 ## P3 — 上架准备(如果目标是真的发布)
 

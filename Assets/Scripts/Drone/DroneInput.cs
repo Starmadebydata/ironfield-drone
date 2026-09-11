@@ -26,6 +26,10 @@ namespace Ironfield.Drone
         public bool FirePressed;
         public bool RecallPressed;
 
+        /// <summary>True if the last frame with meaningful input came from a
+        /// gamepad rather than mouse/keyboard — HUD control prompts follow this.</summary>
+        public static bool LastWasGamepad { get; private set; }
+
         public static DroneInput Read()
         {
             var i = new DroneInput();
@@ -52,6 +56,11 @@ namespace Ironfield.Drone
                 i.FirePressed |= kb.enterKey.wasPressedThisFrame;
             }
 
+            bool mouseKbActive = (mouse != null && mouse.delta.ReadValue().sqrMagnitude > 0.25f)
+                || i.FirePressed || i.Throttle != 0f || i.ClimbTrim != 0f || i.Roll != 0f
+                || i.RecallPressed || i.Boost;
+            if (mouseKbActive) LastWasGamepad = false;
+
             var gp = Gamepad.current;
             if (gp != null)
             {
@@ -67,6 +76,11 @@ namespace Ironfield.Drone
                 i.Precision |= gp.leftTrigger.ReadValue() > 0.5f;
                 i.FirePressed |= gp.buttonSouth.wasPressedThisFrame || gp.rightShoulder.wasPressedThisFrame;
                 i.RecallPressed |= gp.buttonNorth.wasPressedThisFrame;
+
+                bool gamepadActive = r.sqrMagnitude > 0.04f || l.sqrMagnitude > 0.04f
+                    || i.Boost || i.Precision || i.FirePressed || i.RecallPressed
+                    || gp.rightShoulder.isPressed || gp.leftShoulder.isPressed;
+                if (gamepadActive && !mouseKbActive) LastWasGamepad = true;
             }
 #endif
             i.Throttle = Mathf.Clamp(i.Throttle, -1f, 1f);

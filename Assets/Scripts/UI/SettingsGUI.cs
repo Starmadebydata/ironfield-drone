@@ -17,7 +17,7 @@ namespace Ironfield.UI
             GUI.DrawTexture(new Rect(0, 0, w, h), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            float pw = 440, ph = 300;
+            float pw = 440, ph = 380;
             float px = w * 0.5f - pw * 0.5f, py = h * 0.5f - ph * 0.5f;
             GUI.Box(new Rect(px, py, pw, ph), "设置");
 
@@ -47,6 +47,15 @@ namespace Ironfield.UI
 
             bool inv = GUI.Toggle(new Rect(lx, y, pw - 40, rowH), Core.GameSettings.InvertY, " 反转Y轴");
             if (inv != Core.GameSettings.InvertY) Core.GameSettings.SetInvertY(inv);
+            y += rowH;
+
+            bool cb = GUI.Toggle(new Rect(lx, y, pw - 40, rowH), Core.GameSettings.ColorblindMode,
+                " 色盲模式(高对比蓝/橙配色)");
+            if (cb != Core.GameSettings.ColorblindMode) Core.GameSettings.SetColorblindMode(cb);
+            y += rowH;
+
+            bool shake = GUI.Toggle(new Rect(lx, y, pw - 40, rowH), Core.GameSettings.CameraShake, " 镜头震动");
+            if (shake != Core.GameSettings.CameraShake) Core.GameSettings.SetCameraShake(shake);
             y += rowH + 8;
 
             string[] names = QualitySettings.names;
