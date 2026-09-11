@@ -1105,6 +1105,12 @@ namespace Ironfield.EditorTools
             var uiSfxGo = new GameObject("UiSfx");
             uiSfxGo.AddComponent<UiSfx>().clickClip = UiClickClip();
 
+            // inert unless launched with -demo; DontDestroyOnLoad carries it
+            // through the whole scripted playthrough (see DemoRunner.cs)
+            var demoGo = new GameObject("DemoRunner");
+            demoGo.AddComponent<Ironfield.Mission.DemoRunner>();
+            demoGo.AddComponent<DemoRecorder>(); // inert unless launched with -record
+
             EditorSceneManager.MarkSceneDirty(scene);
             Directory.CreateDirectory(ScenesDir);
             EditorSceneManager.SaveScene(scene, MainMenuScenePath);

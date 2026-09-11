@@ -189,8 +189,32 @@ namespace Ironfield.Drone
             float aimX = Mathf.Clamp(headingErr / 25f, -1f, 1f);
 
             float dist = toFlat.magnitude;
-            float elevation = Mathf.Atan2(to.y, Mathf.Max(0.01f, dist)) * Mathf.Rad2Deg;
-            float aimY = Mathf.Clamp(-elevation / pitchRange, -1f, 1f);
+            // Floor the horizontal distance well above zero, not just above
+            // divide-by-zero: as a close-range dive shrinks toFlat toward 0,
+            // atan2's angle races to +/-90 deg for any nonzero height gap,
+            // saturating the pitch command hard-over and — because that command
+            // pulls the nose away from level, which only *shrinks* the horizontal
+            // gap further relative to the height gap — never recovering. Verified
+            // as the cause of a real runaway climb-away during autopilot testing
+            // (drone climbed from 35m to 780m+ and never re-engaged). A floor on
+            // the order of the warhead engagement range keeps commanded elevation
+            // bounded during the terminal approach instead of blowing up right
+            // when precision matters most.
+            float elevation = Mathf.Atan2(to.y, Mathf.Max(10f, dist)) * Mathf.Rad2Deg;
+            // NOT negated: positive aim.y climbs (see FixedUpdate: pitchCmd =
+            // -aim.y * pitchRange, and Quaternion.Euler's +X convention pitches
+            // the nose down for positive pitchCmd — so positive aim.y -> negative
+            // pitchCmd -> nose up). A target below has to.y < 0 -> elevation < 0,
+            // and we want that to DESCEND (negative aim.y), so aimY must carry
+            // elevation's own sign, not flip it. The flipped version silently
+            // climbed away from every target below the drone (i.e. almost always,
+            // since the drone launches on high ground) instead of diving on it —
+            // this is what the runaway-climb bug above actually was; the distance
+            // floor was a real secondary issue but not the root cause. An earlier,
+            // looser test (large yaw + small pitch offset) didn't catch the wrong
+            // sign because yaw alone was enough to pass its alignment check —
+            // AutopilotTests now also covers a pitch-dominant case specifically.
+            float aimY = Mathf.Clamp(elevation / pitchRange, -1f, 1f);
 
             _aim = Vector2.Lerp(_aim, new Vector2(aimX, aimY), 1f - Mathf.Exp(-8f * dt));
             _in.Throttle = 1f;

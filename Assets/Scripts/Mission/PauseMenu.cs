@@ -48,6 +48,9 @@ namespace Ironfield.Mission
             if (escPressed) SetPaused(!IsPaused);
         }
 
+        /// <summary>Demo/test hook: pause/resume exactly like pressing Esc.</summary>
+        public void DebugSetPaused(bool p) => SetPaused(p);
+
         void SetPaused(bool p)
         {
             if (IsPaused == p) return;

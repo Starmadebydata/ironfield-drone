@@ -51,6 +51,45 @@ namespace Ironfield.Tests
         }
 
         [UnityTest]
+        public IEnumerator AutopilotTarget_descends_toward_a_target_below()
+        {
+            // Regression test for a real bug: UpdateAutopilotAim's pitch sign was
+            // flipped (aimY = -elevation/pitchRange instead of +elevation/pitchRange),
+            // so the drone CLIMBED AWAY from any target below it — i.e. almost
+            // every real target, since the drone launches on high ground — instead
+            // of diving on it. AutopilotTarget_steers_the_drone_toward_it didn't
+            // catch this: its target is mostly off to the side (40 fwd + 60 right
+            // vs only 25 up), so yaw alone pulled the alignment dot product over
+            // the passing threshold even with pitch commanding the wrong direction.
+            // This test isolates pitch by placing the target almost straight ahead
+            // and well below, so only a correct descend command can pass it.
+            PlayerPrefs.SetInt("ironfield.seenTutorial", 1);
+            yield return SceneManager.LoadSceneAsync("Mission01", LoadSceneMode.Single);
+            for (int i = 0; i < 5; i++) yield return null;
+            foreach (var tt in Object.FindObjectsByType<VehicleTurret>(FindObjectsSortMode.None))
+                tt.enabled = false;
+
+            var mgr = Object.FindAnyObjectByType<MissionManager>();
+            var drone = mgr.ActiveDrone;
+            Assert.IsNotNull(drone);
+
+            drone.useDebugInput = true;
+            drone.debugInput = new Vector4(1f, 0f, 0f, 0f);
+            for (int i = 0; i < 15; i++) yield return new WaitForFixedUpdate();
+            drone.useDebugInput = false;
+
+            float startAlt = drone.transform.position.y;
+            Vector3 target = drone.transform.position + drone.transform.forward * 60f + Vector3.down * 60f;
+            drone.AutopilotTarget = target;
+
+            for (int i = 0; i < 150; i++) yield return new WaitForFixedUpdate(); // ~2.5s
+
+            Assert.Less(drone.transform.position.y, startAlt,
+                $"autopilot should descend toward a target below it (start alt={startAlt:0.0}, "
+                + $"now={drone.transform.position.y:0.0})");
+        }
+
+        [UnityTest]
         public IEnumerator Auto_attack_setting_finishes_a_committed_dive_on_its_own()
         {
             PlayerPrefs.SetInt("ironfield.seenTutorial", 1);

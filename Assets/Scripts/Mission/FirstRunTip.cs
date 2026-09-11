@@ -73,6 +73,9 @@ namespace Ironfield.Mission
                 Dismiss();
         }
 
+        /// <summary>Demo/test hook: dismiss exactly like clicking the button.</summary>
+        public void DebugDismiss() => Dismiss();
+
         void Dismiss()
         {
             Showing = false;

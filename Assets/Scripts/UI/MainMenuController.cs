@@ -28,6 +28,9 @@ namespace Ironfield.UI
             return i >= 0 && i + 1 < args.Length ? args[i + 1] : "Mission03";
         }
 
+        /// <summary>Demo/test hook: jump straight to the mission-select panel.</summary>
+        public void DebugShowMissions() => _panel = Panel.Missions;
+
         void EnsureStyles()
         {
             if (_title != null) return;
