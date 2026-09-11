@@ -23,6 +23,14 @@ namespace Ironfield.Core
             SceneManager.LoadScene(MissionScene);
         }
 
+        /// <summary>Load a mission scene by name (see MissionCatalog).</summary>
+        public static void LoadMissionByName(string sceneName)
+        {
+            if (string.IsNullOrEmpty(sceneName)) return;
+            Time.timeScale = 1f;
+            SceneManager.LoadScene(sceneName);
+        }
+
         public static void RestartCurrent()
         {
             Time.timeScale = 1f;

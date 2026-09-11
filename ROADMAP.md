@@ -52,22 +52,50 @@
 
 ## P1 — 让它是"一款游戏"而不是"一关"(核心内容量)
 
-1. **多任务/关卡**:至少 3 关,难度递增(车队规模、地形、有无防空火力点、
-   天气/时段)。`MissionManager` 已经是数据驱动的雏形,抽成
-   `MissionDefinition` ScriptableObject(车队构成、路线、环境预设、目标数)。
-2. **关卡选择/进度**:`CampaignProgress`(PlayerPrefs 或简单 JSON 存档)记录
-   已解锁关卡、最佳评分(S-F 评分系统已有,复用)。
-3. **敌方与目标多样性**:现在只有 直行车队,加:
-   - 静态防空点(固定炮位,逼玩家绕地形而不是直冲)
-   - 一次性"高价值目标"(指挥车/雷达车,击毁给额外分)
-   - 车队在受击后的分散/加速反应(现在只有掉队/逃逸两种状态)
-4. **无人机进阶**:至少第二种无人机(如侦察型/重装甲型)作为关卡奖励解锁,
-   给"进阶感",不需要复杂的天赋树。
-5. **音频**:用免费 CC0 音效库(freesound.org / Kenney 音效包,同一个供货
-   逻辑复用 CREDITS.md 流程)替换合成占位音:引擎变桨距音、风声、爆炸、
-   UI 反馈音、命中提示音;加一条低强度环境/紧张感背景乐循环。
+**状态(2026-09-11):1、2、3 已实现;4 明确砍掉留到之后;5 做了范围调整。**
 
-验收标准:一个玩家愿意打完 3 关而不是打完 1 关就关掉。
+1. ✅ **多任务/关卡**:3 关,难度递增(车队规模 6→7→8、有无防空火力点
+   0→1→2、车队速度 1.0→1.15→1.3 倍)。用编辑器时(非运行时)的
+   `MissionBuildConfig`(`IronfieldSetup.cs`)驱动 `BuildScene`,而不是运行时
+   ScriptableObject——场景本来就是无头预烘焙的,运行时不需要再读一份数据。
+   **范围调整**:没做"地形/天气/时段"随关卡变化,3 关地形/村庄是同一份(同
+   一套固定噪声种子),只有车队构成和敌方部署不同。加地形差异化需要给
+   `BuildTerrain`/`ScatterVegetation`/`ScatterRuins` 加种子偏移参数,单独算一
+   块工作量,先留到后面。
+2. ✅ **关卡选择/进度**:`Ironfield.Core.CampaignProgress`(PlayerPrefs)记录
+   已解锁关卡数 + 每关最佳分数/评级;`Ironfield.Core.MissionCatalog` 是固定
+   编译期关卡表(id/显示名/场景名)。主菜单"开始任务"现在是关卡列表,锁定的
+   关卡显示 🔒,已打过的显示最佳评级。赢关面板加了"Next Mission ▶"直接进
+   下一关。
+3. ✅ **敌方与目标多样性**:
+   - 静态防空点(`BuildFlakPosition`):独立的 `VehicleTurret`(不挂
+     `Vehicle`/`HealthComponent`,打不掉——是要绕开的地形,不是击杀目标),
+     射速比车载炮慢、散布更宽,视觉上是杆+炮管+沙包,跟车辆炮塔一看就有区别。
+   - 高价值目标(`Vehicle.highValue`):Mission03 车队最后一辆车,红旗+红色
+     信标点亮清晰可见,击毁额外 +750 分(`MissionManager` 订阅
+     `VehicleRegistry.AnyDestroyed` 统计)。
+   - 车队受击后分散/加速反应:**发现这个其实已经实现了**
+     (`VehicleConvoyAI.ReactToAllyLost`,同伴被摧毁后短暂停顿再以 1.7 倍速
+     通过),这次只是让它在更难的关卡里更常触发。
+4. ⛔ **无人机进阶(第二种无人机):这次没做**。原因是范围——新机型需要新
+   prefab + `DroneTuning` 变体 + 选择/解锁 UI,单独是一块不小的工作量,做了
+   容易把这次改动拖成一个既不稳又难 review 的大 diff。建议单独作为下一个
+   任务来做,现在多任务系统的骨架(`MissionCatalog`/`CampaignProgress`)已经
+   稳定,加"选无人机"UI 有地方接了。
+5. ⚠️ **音频,范围调整**:没有引入真实 CC0 录音素材(freesound.org 需要
+   OAuth 授权、Kenney 素材包的直链地址靠猜不可靠,贸然接入这次的改动风险
+   与 glTFast 那次类似)。改为:(a) 让"音效音量"滑条真的起作用——之前接了
+   UI 但没有任何声音源在听它,现在 `Explosion`/`Wreck`(爆炸/载具摧毁的合成
+   "boom")、新增的命中提示音("ping",`MakePingClip`)都读
+   `GameSettings.SfxVolume`;(b) 引擎音量同理接进 `MotorPitch`。**真实录音
+   素材仍是待办**,建议你在浏览器里挑几个 Kenney/freesound 的包后把直链发我,
+   我按 CREDITS.md 现有流程接进去,比我去猜链接可靠。
+
+验收标准:一个玩家愿意打完 3 关而不是打完 1 关就关掉。**3 关已经可打通**,
+带 `MainMenu_loads_without_errors` 之外的两条新 PlayMode 冒烟测试验证
+Mission02/03 的防空点数量和高价值目标存在;`CampaignProgress` 有 5 条
+EditMode 单测(解锁链、最佳成绩、胜负不同结果)。EditMode 14/14、PlayMode
+5/5。
 
 ## P2 — 打磨与工程债(让它经得起别人看)
 

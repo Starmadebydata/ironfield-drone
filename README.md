@@ -32,10 +32,17 @@ Steps 2 and 3 are also on the **Ironfield** editor menu once the project is open
 ## Play
 
 Open the project in Unity Hub, load `Assets/Scenes/MainMenu.unity`, press Play.
-"开始任务" drops you into `Mission01`; "设置" has volume / mouse sensitivity /
-Y-invert / quality; `Esc` in-mission pauses (resume, controls, settings, restart,
-main menu). First launch ever shows a one-time controls tip before you get
-control of the drone.
+"开始任务" opens a 3-mission campaign list (each unlocks the next on a win,
+best score/grade remembered per mission); "设置" has volume / mouse sensitivity
+/ Y-invert / quality; `Esc` in-mission pauses (resume, controls, settings,
+restart, main menu). First launch ever shows a one-time controls tip before you
+get control of the drone.
+
+**Campaign.** `Mission01` (baseline, 6 vehicles) → `Mission02` (7 vehicles + a
+static flak position — indestructible, forces you to vary your approach) →
+`Mission03` (8 vehicles, 2 flak positions, and a flagged HQ command vehicle
+worth a score bonus). Convoys get faster mission over mission. A win screen
+gets a "Next Mission ▶" button straight into the next unlocked slot.
 
 **Mouse-aim flight.** The mouse moves an aim reticle inside the ring; the drone
 continuously turns its nose onto the reticle and flies where you point. Hands off
@@ -67,9 +74,12 @@ control legend fades after ~14 s; hold `H` to bring it back.
   - `Targeting/` soft lock-on
   - `Vehicles/` health-wrapped targets, convoy AI, turret, wreck swap
   - `Combat/` shared `HealthComponent`, `DamageInfo`, `Explosion`
-  - `Mission/` mission loop + IMGUI HUD
+  - `Mission/` mission loop, pause menu, first-run tip, IMGUI HUD
+  - `UI/` main menu + campaign select, shared settings panel
+  - `Core/` scene flow, PlayerPrefs-backed settings/campaign progress, mission catalog
 - `Assets/Editor/` — headless setup (`IronfieldPackages`, `IronfieldSetup`)
-- `Assets/Tests/EditMode/` — `HealthComponent` + targeting-cone unit tests
+- `Assets/Tests/EditMode/` — unit tests (health/targeting math, campaign progress)
+- `Assets/Tests/PlayMode/` — scene smoke tests (mission flight, targeting, campaign scenes, main menu)
 - `tools/blender/` — one script per model, shared helpers in `_common.py`
 
 ## Regenerating / iterating on art
@@ -80,9 +90,10 @@ regenerating, let Unity reimport; prefabs keep their component wiring.
 
 ## Known prototype limitations
 
-IMGUI HUD (swap for uGUI/TMP later), Built-in pipeline (URP conversion pending),
-blockout art only, single mission, no menu / settings / save, synth placeholder
-audio.
+IMGUI throughout (menus included — see ROADMAP.md P2 for the uGUI/TMP pass),
+Built-in pipeline (URP conversion pending), procedurally-synthesised placeholder
+audio (no recorded SFX yet), single drone type, 3-mission campaign (no per-mission
+terrain variation yet — same battlefield, different convoy/enemy composition).
 
 ## License
 

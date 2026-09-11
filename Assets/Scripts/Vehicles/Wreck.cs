@@ -1,4 +1,5 @@
 using Ironfield.Combat;
+using Ironfield.Core;
 using UnityEngine;
 
 namespace Ironfield.Vehicles
@@ -76,7 +77,7 @@ namespace Ironfield.Vehicles
             }
 
             if (destroyedSfx)
-                AudioSource.PlayClipAtPoint(destroyedSfx, transform.position, 1f);
+                AudioSource.PlayClipAtPoint(destroyedSfx, transform.position, GameSettings.SfxVolume);
         }
     }
 }

@@ -18,6 +18,8 @@ namespace Ironfield.Vehicles
         public Transform aimPoint;
         [Tooltip("Optional label for the HUD.")]
         public string displayName = "Armoured target";
+        [Tooltip("Command/HQ vehicle: worth a score bonus, flagged on the HUD.")]
+        public bool highValue;
 
         HealthComponent _health;
         bool _destroyed;

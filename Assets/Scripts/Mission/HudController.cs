@@ -22,10 +22,13 @@ namespace Ironfield.Mission
         public MissionManager mission;
         public TargetingSystem targeting;
         public DroneCameraRig cameraRig;
+        [Tooltip("Baked procedural blip, set by IronfieldSetup.")]
+        public AudioClip hitPingClip;
 
         GUIStyle _label, _small, _big, _center;
         Texture2D _px;
         Camera _cam;
+        AudioSource _sfx;
 
         float _hitMarker;        // >0 while showing
         bool _hitWasKill;
@@ -46,6 +49,10 @@ namespace Ironfield.Mission
             _px = new Texture2D(1, 1);
             _px.SetPixel(0, 0, Color.white);
             _px.Apply();
+
+            _sfx = gameObject.AddComponent<AudioSource>();
+            _sfx.spatialBlend = 0f; // 2D UI feedback, always audible
+            _sfx.playOnAwake = false;
         }
 
         void Update()
@@ -78,6 +85,7 @@ namespace Ironfield.Mission
         {
             _hitMarker = 0.25f;
             _hitWasKill = false;
+            PlayPing(1f);
         }
 
         void OnKill(Vehicle v)
@@ -87,6 +95,14 @@ namespace Ironfield.Mission
                         $"{mission.VehiclesTotal - mission.VehiclesLeft}/{mission.VehiclesTotal}";
             _hitMarker = 0.3f;
             _hitWasKill = true;
+            PlayPing(1.4f);
+        }
+
+        void PlayPing(float pitch)
+        {
+            if (hitPingClip == null || _sfx == null) return;
+            _sfx.pitch = pitch;
+            _sfx.PlayOneShot(hitPingClip, GameSettings.SfxVolume);
         }
 
         void OnDroneDamaged(float amt) => _vignette = Mathf.Clamp01(_vignette + amt * 0.05f + 0.25f);
@@ -397,11 +413,19 @@ namespace Ironfield.Mission
             for (int i = 0; i < lines.Length; i++)
                 GUI.Label(new Rect(0, h * 0.24f + 58 + i * 24, w, 22), lines[i], _center);
 
-            if (GUI.Button(new Rect(w * 0.5f - 172, h * 0.62f, 104, 40), "Restart"))
+            string next = won ? MissionCatalog.NextSceneName(mission.missionId) : null;
+            if (next != null)
+            {
+                if (GUI.Button(new Rect(w * 0.5f - 100, h * 0.60f, 200, 42), "Next Mission ▶"))
+                    SceneFlow.LoadMissionByName(next);
+            }
+
+            float row2 = won && next != null ? h * 0.60f + 52f : h * 0.62f;
+            if (GUI.Button(new Rect(w * 0.5f - 172, row2, 104, 40), "Restart"))
                 SceneFlow.RestartCurrent();
-            if (GUI.Button(new Rect(w * 0.5f - 60, h * 0.62f, 120, 40), "Main Menu"))
+            if (GUI.Button(new Rect(w * 0.5f - 60, row2, 120, 40), "Main Menu"))
                 SceneFlow.LoadMainMenu();
-            if (GUI.Button(new Rect(w * 0.5f + 68, h * 0.62f, 104, 40), "Quit"))
+            if (GUI.Button(new Rect(w * 0.5f + 68, row2, 104, 40), "Quit"))
                 SceneFlow.Quit();
         }
     }

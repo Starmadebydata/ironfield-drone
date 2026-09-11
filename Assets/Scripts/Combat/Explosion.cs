@@ -1,3 +1,4 @@
+using Ironfield.Core;
 using UnityEngine;
 
 namespace Ironfield.Combat
@@ -34,6 +35,12 @@ namespace Ironfield.Combat
         {
             _instigator = instigator;
             Detonate();
+        }
+
+        void Awake()
+        {
+            var a = GetComponent<AudioSource>();
+            if (a != null) a.volume = GameSettings.SfxVolume;
         }
 
         void Start()

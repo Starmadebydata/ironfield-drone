@@ -27,10 +27,13 @@ namespace Ironfield.Mission
         [Header("Rules")]
         public int droneStock = 5;
         public float respawnDelay = 1.5f;
+        [Tooltip("Campaign slot id — see Ironfield.Core.MissionCatalog.")]
+        public string missionId = "m01";
 
         public MissionState State { get; private set; } = MissionState.Briefing;
         public int DronesLeft { get; private set; }
         bool _currentDroneSpent;
+        int _highValueBonus;
 
         public int Killed => VehicleRegistry.DestroyedCount;
         public int Escaped => VehicleRegistry.EscapedCount;
@@ -48,6 +51,14 @@ namespace Ironfield.Mission
         public string Grade { get; private set; } = "";
 
         void Awake() => Ironfield.Core.GameSettings.Load();
+
+        void OnEnable() => VehicleRegistry.AnyDestroyed += OnAnyVehicleDestroyed;
+        void OnDisable() => VehicleRegistry.AnyDestroyed -= OnAnyVehicleDestroyed;
+
+        void OnAnyVehicleDestroyed(Vehicle v)
+        {
+            if (v != null && v.highValue) _highValueBonus += 750;
+        }
 
         void Start()
         {
@@ -87,6 +98,7 @@ namespace Ironfield.Mission
 
             int dronesUsed = droneStock - DronesLeft;
             Score = Killed * 1000
+                    + _highValueBonus
                     - Escaped * 400
                     - dronesUsed * 120
                     - Mathf.RoundToInt(TimeActive) * 2;
@@ -96,6 +108,8 @@ namespace Ironfield.Mission
             Grade = result == MissionState.Won
                 ? (dronesUsed <= VehiclesTotal ? "S" : dronesUsed <= VehiclesTotal + 2 ? "A" : "B")
                 : (frac >= 0.66f ? "C" : frac >= 0.33f ? "D" : "F");
+
+            CampaignProgress.ReportResult(missionId, result == MissionState.Won, Score, Grade);
         }
 
         void SpawnDrone()

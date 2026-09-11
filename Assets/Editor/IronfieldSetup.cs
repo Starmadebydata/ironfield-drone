@@ -49,6 +49,59 @@ namespace Ironfield.EditorTools
         const string ScenePath = ScenesDir + "/Mission01.unity";
         const string MainMenuScenePath = ScenesDir + "/MainMenu.unity";
 
+        /// <summary>Per-mission tuning for BuildScene — everything that makes the
+        /// three campaign scenes different without duplicating the ~150 lines of
+        /// terrain/road/lighting setup they share. See Ironfield.Core.MissionCatalog
+        /// for the matching runtime id/scene list.</summary>
+        struct MissionBuildConfig
+        {
+            public string scenePath;
+            public string missionId;
+            public int droneStock;
+            /// <summary>Convoy composition, lead vehicle first.</summary>
+            public VehicleClass[] convoy;
+            /// <summary>Mark the last convoy vehicle as the high-value bonus target.</summary>
+            public bool highValueTarget;
+            /// <summary>Multiplies every convoy member's VehicleConvoyAI.speed.</summary>
+            public float convoySpeedMul;
+            /// <summary>How many static flak emplacements to place along the road.</summary>
+            public int flakCount;
+        }
+
+        static readonly MissionBuildConfig[] Missions =
+        {
+            new()
+            {
+                scenePath = ScenePath, missionId = "m01", droneStock = 5,
+                convoy = new[]
+                {
+                    VehicleClass.Tank, VehicleClass.IFV, VehicleClass.Truck,
+                    VehicleClass.Tank, VehicleClass.IFV, VehicleClass.Truck,
+                },
+                highValueTarget = false, convoySpeedMul = 1.0f, flakCount = 0,
+            },
+            new()
+            {
+                scenePath = ScenesDir + "/Mission02.unity", missionId = "m02", droneStock = 5,
+                convoy = new[]
+                {
+                    VehicleClass.Tank, VehicleClass.Tank, VehicleClass.IFV, VehicleClass.IFV,
+                    VehicleClass.Truck, VehicleClass.Truck, VehicleClass.Truck,
+                },
+                highValueTarget = false, convoySpeedMul = 1.15f, flakCount = 1,
+            },
+            new()
+            {
+                scenePath = ScenesDir + "/Mission03.unity", missionId = "m03", droneStock = 6,
+                convoy = new[]
+                {
+                    VehicleClass.Tank, VehicleClass.Tank, VehicleClass.IFV, VehicleClass.IFV,
+                    VehicleClass.IFV, VehicleClass.Truck, VehicleClass.Truck, VehicleClass.Truck,
+                },
+                highValueTarget = true, convoySpeedMul = 1.3f, flakCount = 2,
+            },
+        };
+
         static readonly string[] WantTags = { "Drone", "Vehicle", "LaunchPoint" };
         // index -> name; 6..9 are the first free user layer slots
         static readonly (int idx, string name)[] WantLayers =
@@ -138,18 +191,16 @@ namespace Ironfield.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            BuildScene();
+            foreach (var cfg in Missions) BuildScene(cfg);
             BuildMainMenuScene();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            // MainMenu first so a real build boots there, not straight into Mission01.
-            EditorBuildSettings.scenes = new[]
-            {
-                new EditorBuildSettingsScene(MainMenuScenePath, true),
-                new EditorBuildSettingsScene(ScenePath, true),
-            };
+            // MainMenu first so a real build boots there, not straight into a mission.
+            var scenes = new List<EditorBuildSettingsScene> { new(MainMenuScenePath, true) };
+            foreach (var cfg in Missions) scenes.Add(new EditorBuildSettingsScene(cfg.scenePath, true));
+            EditorBuildSettings.scenes = scenes.ToArray();
 
             Debug.Log("[Ironfield] Build complete. Open " + MainMenuScenePath);
         }
@@ -227,6 +278,24 @@ namespace Ironfield.EditorTools
                 Object.DestroyImmediate(d);
             }
             _ = scene;
+
+            // Mission03: eyeball the flak emplacement + high-value beacon
+            var m3 = EditorSceneManager.OpenScene(ScenesDir + "/Mission03.unity", OpenSceneMode.Single);
+            var cam3 = Camera.main;
+            var flak = GameObject.Find("FlakPosition");
+            if (cam3 != null && flak != null)
+            {
+                RenderSettings.fogDensity = 0.0009f;
+                Vector3 feye = flak.transform.position + new Vector3(-16, 9, -16);
+                Shot(cam3, feye, flak.transform.position + Vector3.up * 2f, "Ironfield_smoke_flak.png");
+            }
+            var hqFlag = GameObject.Find("HQFlag");
+            if (cam3 != null && hqFlag != null)
+            {
+                Vector3 heye = hqFlag.transform.position + new Vector3(-10, 4, -10);
+                Shot(cam3, heye, hqFlag.transform.position, "Ironfield_smoke_hq.png");
+            }
+            _ = m3;
         }
 
         static void Shot(Camera cam, Vector3 eye, Vector3 lookAt, string file)
@@ -693,7 +762,7 @@ namespace Ironfield.EditorTools
         // ----------------------------------------------------------------- //
         // Scene
         // ----------------------------------------------------------------- //
-        static void BuildScene()
+        static void BuildScene(MissionBuildConfig cfg)
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -800,15 +869,21 @@ namespace Ironfield.EditorTools
             var ifvPf = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/IFV.prefab");
             var truckPf = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Truck.prefab");
 
+            GameObject PrefabFor(VehicleClass c) => c switch
+            {
+                VehicleClass.Tank => tankPf,
+                VehicleClass.IFV => ifvPf,
+                _ => truckPf,
+            };
+
             var convoyParent = new GameObject("Convoy").transform;
-            GameObject[] order = { tankPf, ifvPf, truckPf, tankPf, ifvPf, truckPf };
             Vehicle prevAhead = null;
-            for (int i = 0; i < order.Length; i++)
+            for (int i = 0; i < cfg.convoy.Length; i++)
             {
                 Vector3 pos = Vector3.Lerp(waypoints[0].position, waypoints[1].position, 0.15f)
                               - (waypoints[1].position - waypoints[0].position).normalized * (i * 14f);
                 pos.y = SampleHeight(terrain, pos);
-                var vgo = (GameObject)PrefabUtility.InstantiatePrefab(order[i]);
+                var vgo = (GameObject)PrefabUtility.InstantiatePrefab(PrefabFor(cfg.convoy[i]));
                 var vinst = vgo.GetComponent<Vehicle>();
                 vinst.transform.SetParent(convoyParent);
                 vinst.transform.position = pos;
@@ -817,7 +892,28 @@ namespace Ironfield.EditorTools
                 var ai = vinst.GetComponent<VehicleConvoyAI>();
                 ai.waypoints = waypoints.ToArray();
                 ai.vehicleAhead = prevAhead;
+                ai.speed *= cfg.convoySpeedMul;
                 prevAhead = vinst;
+
+                bool isHighValue = cfg.highValueTarget && i == cfg.convoy.Length - 1;
+                if (isHighValue)
+                {
+                    vinst.highValue = true;
+                    vinst.displayName = "HQ COMMAND VEHICLE";
+                    MarkHighValue(vinst.transform);
+                }
+            }
+
+            // --- static flak emplacements (Mission02+) ---------
+            for (int f = 0; f < cfg.flakCount; f++)
+            {
+                float t = 0.35f + f * 0.28f; // spaced out along the road
+                Vector3 along = Vector3.Lerp(waypoints[1].position, waypoints[3].position, t);
+                Vector3 side = Vector3.Cross(Vector3.up,
+                    (waypoints[3].position - waypoints[1].position).normalized);
+                Vector3 pos = along + side * (f % 2 == 0 ? 34f : -34f);
+                pos.y = SampleHeight(terrain, pos);
+                BuildFlakPosition(pos, convoyParent.position - pos);
             }
 
             // --- village ruins + battlefield dressing ----------
@@ -832,7 +928,8 @@ namespace Ironfield.EditorTools
                 .GetComponent<DroneController>();
             mgr.launchPoint = launch.transform;
             mgr.cameraRig = rig;
-            mgr.droneStock = 5;
+            mgr.droneStock = cfg.droneStock;
+            mgr.missionId = cfg.missionId;
 
             var targeting = mgrGo.AddComponent<TargetingSystem>();
             targeting.viewCamera = cam;
@@ -842,6 +939,7 @@ namespace Ironfield.EditorTools
             hud.mission = mgr;
             hud.targeting = targeting;
             hud.cameraRig = rig;
+            hud.hitPingClip = MakePingClip();
 
             var pause = mgrGo.AddComponent<PauseMenu>();
             pause.mission = mgr;
@@ -851,7 +949,112 @@ namespace Ironfield.EditorTools
             rig.Bind(null);
 
             EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene, ScenePath);
+            EditorSceneManager.SaveScene(scene, cfg.scenePath);
+        }
+
+        /// <summary>Small red beacon light + flag over the high-value convoy
+        /// vehicle so it reads as distinct at a glance and from the HUD lock.</summary>
+        static void MarkHighValue(Transform vehicle)
+        {
+            var beaconGo = new GameObject("HQBeacon");
+            beaconGo.transform.SetParent(vehicle, false);
+            beaconGo.transform.localPosition = Vector3.up * 4.6f;
+            var light = beaconGo.AddComponent<Light>();
+            light.type = LightType.Point;
+            light.color = new Color(1f, 0.2f, 0.15f);
+            light.range = 14f;
+            light.intensity = 3f;
+
+            // pole + flag well clear of the tallest vehicle roof (truck ~3.3 m)
+            var pole = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pole.name = "HQPole";
+            pole.transform.SetParent(vehicle, false);
+            pole.transform.localPosition = Vector3.up * 3.6f;
+            pole.transform.localScale = new Vector3(0.05f, 1f, 0.05f);
+            Object.DestroyImmediate(pole.GetComponent<Collider>());
+            pole.GetComponent<MeshRenderer>().sharedMaterial =
+                MakeStandard("hq_pole", new Color(0.1f, 0.1f, 0.1f), 0.2f, 0.3f);
+
+            var flag = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            flag.name = "HQFlag";
+            flag.transform.SetParent(vehicle, false);
+            flag.transform.localPosition = Vector3.up * 4.6f + Vector3.right * 0.3f;
+            flag.transform.localScale = new Vector3(0.6f, 0.4f, 0.04f);
+            Object.DestroyImmediate(flag.GetComponent<Collider>());
+            flag.GetComponent<MeshRenderer>().sharedMaterial =
+                MakeStandard("hq_flag", new Color(0.75f, 0.08f, 0.06f), 0.15f, 0f);
+            SetLayerRecursive(flag, GameLayers.Vehicle);
+        }
+
+        /// <summary>Stationary flak position: a standalone VehicleTurret (no Vehicle/
+        /// HealthComponent, so it can't be destroyed for score — it's terrain to route
+        /// around, not an objective) on a short pole with a simple gun mount, tuned
+        /// slower/wider than vehicle return fire so it reads as "AA" rather than "tank".</summary>
+        static void BuildFlakPosition(Vector3 pos, Vector3 facing)
+        {
+            var root = new GameObject("FlakPosition");
+            root.transform.position = pos;
+            root.transform.rotation = facing.sqrMagnitude > 0.01f
+                ? Quaternion.LookRotation(new Vector3(facing.x, 0, facing.z).normalized, Vector3.up)
+                : Quaternion.identity;
+
+            var baseMat = MakeStandard("flak_base", new Color(0.24f, 0.23f, 0.19f), 0.1f, 0.1f);
+
+            var pole = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pole.name = "Pole";
+            pole.transform.SetParent(root.transform, false);
+            pole.transform.localScale = new Vector3(0.5f, 1.1f, 0.5f);
+            pole.transform.localPosition = Vector3.up * 1.1f;
+            pole.GetComponent<MeshRenderer>().sharedMaterial = baseMat;
+
+            var yaw = new GameObject("Yaw").transform;
+            yaw.SetParent(root.transform, false);
+            yaw.localPosition = Vector3.up * 2.2f;
+
+            var pitch = new GameObject("Pitch").transform;
+            pitch.SetParent(yaw, false);
+
+            var barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            barrel.name = "Barrel";
+            barrel.transform.SetParent(pitch, false);
+            barrel.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            barrel.transform.localScale = new Vector3(0.16f, 1.3f, 0.16f);
+            barrel.transform.localPosition = new Vector3(0, 0, 1.1f);
+            barrel.GetComponent<MeshRenderer>().sharedMaterial =
+                MakeStandard("flak_gunmetal", new Color(0.16f, 0.16f, 0.17f), 0.35f, 0.6f);
+            Object.DestroyImmediate(barrel.GetComponent<Collider>());
+
+            var muzzle = new GameObject("Muzzle").transform;
+            muzzle.SetParent(pitch, false);
+            muzzle.localPosition = new Vector3(0, 0, 2.4f);
+
+            var turret = root.AddComponent<VehicleTurret>();
+            turret.yaw = yaw; turret.pitch = pitch; turret.muzzle = muzzle;
+            turret.tracerPrefab = MakeTracerPrefab();
+            turret.range = 140f;
+            turret.traverseDeg = 140f;
+            turret.fireInterval = 0.32f;
+            turret.burst = 3;
+            turret.burstPause = 2.2f;
+            turret.spreadDeg = 4.5f;
+            turret.damagePerHit = 5f;
+
+            // sandbag ring for a battlefield read, matches ScenePropsPass's palette
+            var sand = MakeUnlit(new Color(0.42f, 0.37f, 0.24f), "sandbag");
+            for (int i = 0; i < 5; i++)
+            {
+                float a = i / 5f * Mathf.PI * 2f;
+                var bag = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                bag.transform.SetParent(root.transform, false);
+                bag.transform.localPosition = new Vector3(Mathf.Sin(a) * 2f, 0.35f, Mathf.Cos(a) * 2f - 1.2f);
+                bag.transform.localScale = new Vector3(1.1f, 0.6f, 0.7f);
+                bag.transform.localRotation = Quaternion.Euler(0, a * Mathf.Rad2Deg, 0);
+                Object.DestroyImmediate(bag.GetComponent<Collider>());
+                bag.GetComponent<MeshRenderer>().sharedMaterial = sand;
+            }
+
+            root.AddComponent<BoxCollider>().size = new Vector3(3f, 3f, 3f);
+            SetLayerRecursive(root, GameLayers.Environment);
         }
 
         /// <summary>Title screen: Start / Settings / Quit. Its own tiny scene so a
@@ -1919,6 +2122,19 @@ namespace Ironfield.EditorTools
                 data[i] = (Mathf.Sin(t * 2f * Mathf.PI * 180f) * 0.4f
                            + Mathf.Sin(t * 2f * Mathf.PI * 322f) * 0.22f
                            + Mathf.Sin(t * 2f * Mathf.PI * 61f) * 0.15f) * 0.5f;
+            }
+            return (data, sr);
+        });
+
+        static AudioClip MakePingClip() => LoadOrWriteWav("ping", () =>
+        {
+            int sr = 44100, n = (int)(sr * 0.14f);
+            var data = new float[n];
+            for (int i = 0; i < n; i++)
+            {
+                float t = i / (float)sr;
+                float env = Mathf.Exp(-t * 32f);
+                data[i] = Mathf.Sin(t * 2f * Mathf.PI * 1400f) * env * 0.7f;
             }
             return (data, sr);
         });

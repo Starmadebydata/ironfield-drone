@@ -11,5 +11,11 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/Mission01.unity
     guid: 2e3b233d653244df2b7887a92b0ae12d
+  - enabled: 1
+    path: Assets/Scenes/Mission02.unity
+    guid: 8a4d4deec3be54bd78bd60d1d582fdad
+  - enabled: 1
+    path: Assets/Scenes/Mission03.unity
+    guid: 7afe42ba49c3e4f6fbe8687e1bd94a23
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0
