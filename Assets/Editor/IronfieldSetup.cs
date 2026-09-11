@@ -1396,8 +1396,11 @@ namespace Ironfield.EditorTools
                 }
             }
 
-            StaticBatchingUtility.Combine(trees.gameObject);
-            StaticBatchingUtility.Combine(scatter.gameObject);
+            // NOTE: deliberately NOT using StaticBatchingUtility.Combine here — it bakes
+            // a new, disk-less combined Mesh per batch, which gets serialized inline into
+            // the scene file (this is what blew Mission01.unity up to >1 GB). Materials
+            // are GPU-instanced instead (see MakeStandard/MakeUnlit), which batches draw
+            // calls at runtime without embedding geometry in the scene.
         }
 
         static float SampleHeight(Terrain t, Vector3 world)
@@ -1591,8 +1594,6 @@ namespace Ironfield.EditorTools
                 }
             }
             SetLayerRecursive(ruts.gameObject, GameLayers.Environment);
-
-            StaticBatchingUtility.Combine(parent.gameObject);
         }
 
         static void ScatterRuins(Terrain terrain)
@@ -1750,8 +1751,6 @@ namespace Ironfield.EditorTools
                 car.GetComponent<BoxCollider>().center = new Vector3(0, 1f, 0);
                 SetLayerRecursive(car.gameObject, GameLayers.Environment);
             }
-
-            StaticBatchingUtility.Combine(parent.gameObject);
         }
 
         // ----------------------------------------------------------------- //
@@ -1784,6 +1783,7 @@ namespace Ironfield.EditorTools
                 existing.SetFloat("_Metallic", 0f);
                 AssetDatabase.CreateAsset(existing, p);
             }
+            existing.enableInstancing = true; // GPU-batch draw calls instead of baking combined meshes into the scene
             _matCache[name] = existing;
             return existing;
         }
@@ -1816,6 +1816,7 @@ namespace Ironfield.EditorTools
                 existing.SetFloat("_Metallic", metallic);
                 AssetDatabase.CreateAsset(existing, p);
             }
+            existing.enableInstancing = true; // GPU-batch draw calls instead of baking combined meshes into the scene
             _matCache[name] = existing;
             return existing;
         }
