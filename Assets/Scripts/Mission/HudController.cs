@@ -122,6 +122,16 @@ namespace Ironfield.Mission
 
         void OnGUI()
         {
+            // See Ironfield.UI.UiScaling — guarantees the scale matrix is
+            // restored even though DrawGUI below returns early in several
+            // places, so it can never leak into another component's OnGUI.
+            var m = Ironfield.UI.UiScaling.Begin();
+            try { DrawGUI(); }
+            finally { Ironfield.UI.UiScaling.End(m); }
+        }
+
+        void DrawGUI()
+        {
             EnsureStyles();
             if (mission == null) return;
             if (_cam == null) _cam = cameraRig ? cameraRig.GetComponent<Camera>() : Camera.main;

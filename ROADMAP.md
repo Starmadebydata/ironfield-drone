@@ -124,7 +124,7 @@ EditMode 单测(解锁链、最佳成绩、胜负不同结果)。EditMode 14/14�
 
 ## P2 — 打磨与工程债(让它经得起别人看)
 
-**状态(2026-09-12):1、2、3(一半)、4(三分之二)、5 已实现。**(最初把
+**状态(2026-09-12):1、2、4 已实现;3 做了一半;5 已实现。**(最初把
 "真机"理解成了需要专门的目标测试设备,用户指出这其实就是"把游戏编译成正式
 安装包,在会用来玩的电脑上跑"——这台 Mac 本身就是目标机器,不需要额外硬件,
 于是把 2 补上了。)
@@ -198,16 +198,29 @@ EditMode 单测(解锁链、最佳成绩、胜负不同结果)。EditMode 14/14�
      `.inputactions` 资产可绑定——真正支持重绑定需要先把整套输入迁到
      Input Actions 架构,这是一次基础性重构,不是"顺手加个 UI"能带过的,
      留到之后单独做。
-4. ⚠️ **可访问性,做了两项半**:
+4. ✅ **可访问性**:
    - ✅ 色盲友好目标标记颜色:设置里"色盲模式"开关,把目标框/锁定环/命中
      闪光从红/黄换成蓝/橙(对红绿色盲更安全的经典配色对),默认关闭。
    - ✅ 可关闭镜头震动:设置里"镜头震动"开关,关掉后 `DroneCameraRig.Shake`
      直接不生效。
-   - ⛔ **UI 缩放选项没做**:游戏里好几个独立 MonoBehaviour 各自有自己的
-     `OnGUI`(菜单/暂停/HUD/首次引导),`GUIUtility.ScaleAroundPivot` 修改的
-     是全局 `GUI.matrix`,任何一处提前 `return`(现有代码里到处都是)就会让
-     缩放矩阵漏到下一个组件的 `OnGUI` 里,污染画面。要安全做这件事得先把
-     UI 收敛到一个根组件,或者干脆等 uGUI 迁移(P2 遗留任务)顺带解决。
+   - ✅ **UI 缩放选项(2026-09-12 补)**:当初砍掉是因为"要安全做这件事得先
+     把 UI 收敛到一个根组件"——后来发现不需要真的重构成一个根组件,只要保证
+     每个独立 `OnGUI` 在**任何**提前 `return` 路径上都会恢复矩阵就够了。新增
+     `Ironfield.UI.UiScaling.Begin()/End()`,4 个 `OnGUI`(`HudController`/
+     `PauseMenu`/`FirstRunTip`/`MainMenuController`)统一改成"`OnGUI` 只做
+     `try { DrawGUI(); } finally { UiScaling.End(m); }`,原来的整个方法体挪进
+     `DrawGUI()`"——`finally` 保证不管 `DrawGUI` 从哪条路径提前返回,矩阵都会
+     被这一个组件自己恢复干净,不会漏给同一帧里排在它后面的下一个 `OnGUI`。
+     `GameSettings.UiScale`(PlayerPrefs,范围 0.8-1.4,默认 1)+ 设置面板里
+     新增一条"界面缩放"滑条。新增 `GameSettingsTests.cs`(2 条 EditMode:
+     默认值、setter 范围钳制)+ `UiScalingTests.cs`(3 条 PlayMode:`Begin`
+     确实在 UiScale≠1 时改了矩阵、`End` 精确复原成 `Begin` 捕获的值而不是
+     简单重置成单位矩阵、连续两组独立的 `Begin`/`End` 不会互相污染)。
+     **没做的验证**:IMGUI 的 `OnGUI` 内容不经过 `Camera.Render()`,这次会话
+     一直用的无头截图管线(`IronfieldSetup.Screenshot`)拍不到 HUD/菜单画面,
+     所以"缩放后视觉上真的变大了"这件事没法像其它功能一样截图肉眼核对,只
+     验证了矩阵数学本身的正确性——这是 IMGUI 覆盖层这类内容在无交互式编辑器
+     会话下的已知验证盲区,跟这次会话里其它纯 3D 场景内容的验证方式不同。
 5. ✅ **稳定性**:新增 `StabilityTests.cs`(3 条 PlayMode)专门补"切场景/
    暂停不留悬挂状态"这类此前真实踩过的坑——第一条直接回归测试了
    `FirstRunTip` 那次冻结 `Time.timeScale` 搞挂自动化测试的问题类型(断言

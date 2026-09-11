@@ -17,7 +17,7 @@ namespace Ironfield.UI
             GUI.DrawTexture(new Rect(0, 0, w, h), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            float pw = 440, ph = 410;
+            float pw = 440, ph = 440;
             float px = w * 0.5f - pw * 0.5f, py = h * 0.5f - ph * 0.5f;
             GUI.Box(new Rect(px, py, pw, ph), "设置");
 
@@ -56,6 +56,11 @@ namespace Ironfield.UI
 
             bool shake = GUI.Toggle(new Rect(lx, y, pw - 40, rowH), Core.GameSettings.CameraShake, " 镜头震动");
             if (shake != Core.GameSettings.CameraShake) Core.GameSettings.SetCameraShake(shake);
+            y += rowH;
+
+            GUI.Label(new Rect(lx, y, lw, rowH), "界面缩放", title);
+            Core.GameSettings.SetUiScale(
+                GUI.HorizontalSlider(new Rect(sx, y + 10, sw, rowH), Core.GameSettings.UiScale, 0.8f, 1.4f));
             y += rowH;
 
             bool auto = GUI.Toggle(new Rect(lx, y, pw - 40, rowH), Core.GameSettings.AutoAttack,

@@ -56,6 +56,14 @@ namespace Ironfield.Mission
 
         void OnGUI()
         {
+            // See Ironfield.UI.UiScaling.
+            var m = Ironfield.UI.UiScaling.Begin();
+            try { DrawGUI(); }
+            finally { Ironfield.UI.UiScaling.End(m); }
+        }
+
+        void DrawGUI()
+        {
             if (!Showing) return;
             EnsureStyles();
             float w = Screen.width, h = Screen.height;

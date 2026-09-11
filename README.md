@@ -35,8 +35,9 @@ Steps 2 and 3 are also on the **Ironfield** editor menu once the project is open
 Open the project in Unity Hub, load `Assets/Scenes/MainMenu.unity`, press Play.
 "开始任务" opens a 3-mission campaign list (each unlocks the next on a win,
 best score/grade remembered per mission); "设置" has volume / mouse sensitivity
-/ Y-invert / quality / colourblind-safe HUD colours / camera-shake toggle;
-`Esc` in-mission pauses (resume, controls, settings, restart, main menu).
+/ Y-invert / quality / colourblind-safe HUD colours / camera-shake toggle /
+UI scale slider; `Esc` in-mission pauses (resume, controls, settings,
+restart, main menu).
 First launch ever shows a one-time controls tip before you get control of the
 drone. Switch between mouse+keyboard and a gamepad mid-session — the on-screen
 control prompts follow whichever you last actually used.
