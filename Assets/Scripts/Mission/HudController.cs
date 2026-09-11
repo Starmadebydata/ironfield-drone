@@ -297,7 +297,14 @@ namespace Ironfield.Mission
             }
 
             GUI.Label(new Rect(p.x + box + 4, p.y - box, 220, 20), tgt.displayName, _small);
-            if (targeting.HasHardLock)
+            bool auto = mission.ActiveDrone != null && mission.ActiveDrone.AutopilotEngaged;
+            if (auto)
+            {
+                var autoStyle = new GUIStyle(_label);
+                autoStyle.normal.textColor = new Color(0.4f, 1f, 0.5f);
+                GUI.Label(new Rect(p.x - 42, p.y + box + 2, 140, 18), "AUTO-ATTACK", autoStyle);
+            }
+            else if (targeting.HasHardLock)
                 GUI.Label(new Rect(p.x - 18, p.y + box + 2, 80, 18), "LOCK", _label);
         }
 

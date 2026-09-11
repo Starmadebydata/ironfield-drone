@@ -19,6 +19,7 @@ namespace Ironfield.Core
         const string KQuality = "ironfield.quality";
         const string KColorblind = "ironfield.a11y.colorblind";
         const string KCameraShake = "ironfield.a11y.camerashake";
+        const string KAutoAttack = "ironfield.autoattack";
 
         public static float MasterVolume { get; private set; } = 1f;
         public static float SfxVolume { get; private set; } = 1f;
@@ -31,6 +32,12 @@ namespace Ironfield.Core
         /// instead of red/green/yellow (safe for the common red-green forms).</summary>
         public static bool ColorblindMode { get; private set; }
         public static bool CameraShake { get; private set; } = true;
+        /// <summary>When on, a committed dive on a hard-locked target (the drone
+        /// already roughly pointed at it — see DiveAssist) finishes itself: full
+        /// autopilot onto the target plus an automatic warhead trigger in range.
+        /// Off by default — manual flying is the core skill of this game; this is
+        /// an opt-in convenience/accessibility toggle, not the default experience.</summary>
+        public static bool AutoAttack { get; private set; }
 
         static bool _loaded;
 
@@ -46,6 +53,7 @@ namespace Ironfield.Core
             QualityLevel = PlayerPrefs.GetInt(KQuality, QualitySettings.GetQualityLevel());
             ColorblindMode = PlayerPrefs.GetInt(KColorblind, 0) != 0;
             CameraShake = PlayerPrefs.GetInt(KCameraShake, 1) != 0;
+            AutoAttack = PlayerPrefs.GetInt(KAutoAttack, 0) != 0;
             Apply();
         }
 
@@ -57,6 +65,7 @@ namespace Ironfield.Core
         public static void SetQualityLevel(int v) { QualityLevel = Mathf.Max(0, v); Apply(); Save(); }
         public static void SetColorblindMode(bool v) { ColorblindMode = v; Save(); }
         public static void SetCameraShake(bool v) { CameraShake = v; Save(); }
+        public static void SetAutoAttack(bool v) { AutoAttack = v; Save(); }
 
         static void Apply()
         {
@@ -75,6 +84,7 @@ namespace Ironfield.Core
             PlayerPrefs.SetInt(KQuality, QualityLevel);
             PlayerPrefs.SetInt(KColorblind, ColorblindMode ? 1 : 0);
             PlayerPrefs.SetInt(KCameraShake, CameraShake ? 1 : 0);
+            PlayerPrefs.SetInt(KAutoAttack, AutoAttack ? 1 : 0);
             PlayerPrefs.Save();
         }
 

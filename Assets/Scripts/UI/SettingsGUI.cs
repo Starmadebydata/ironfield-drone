@@ -17,7 +17,7 @@ namespace Ironfield.UI
             GUI.DrawTexture(new Rect(0, 0, w, h), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            float pw = 440, ph = 380;
+            float pw = 440, ph = 410;
             float px = w * 0.5f - pw * 0.5f, py = h * 0.5f - ph * 0.5f;
             GUI.Box(new Rect(px, py, pw, ph), "设置");
 
@@ -56,6 +56,11 @@ namespace Ironfield.UI
 
             bool shake = GUI.Toggle(new Rect(lx, y, pw - 40, rowH), Core.GameSettings.CameraShake, " 镜头震动");
             if (shake != Core.GameSettings.CameraShake) Core.GameSettings.SetCameraShake(shake);
+            y += rowH;
+
+            bool auto = GUI.Toggle(new Rect(lx, y, pw - 40, rowH), Core.GameSettings.AutoAttack,
+                " 自动攻击(锁定并俯冲后无人机自动完成攻击)");
+            if (auto != Core.GameSettings.AutoAttack) Core.GameSettings.SetAutoAttack(auto);
             y += rowH + 8;
 
             string[] names = QualitySettings.names;

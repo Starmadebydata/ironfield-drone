@@ -35,10 +35,23 @@ namespace Ironfield.Drone
         public bool Precision { get; private set; }
         public Vector2 AimReticle => _aim;          // -1..1 inside the unit circle
         public bool ControlsEnabled { get; set; } = true;
+        public float Heading => _heading;
 
         /// <summary>Test hook: (throttle, aimX, aimY, roll) forced when set.</summary>
         public bool useDebugInput;
         public Vector4 debugInput;
+
+        /// <summary>
+        /// Auto-attack: when set, overrides manual aim + throttle for this frame —
+        /// the flight model steers itself onto this world point at full send
+        /// instead of reading the mouse. Set/cleared by DiveAssist, gated on
+        /// GameSettings.AutoAttack. Boost/roll/climb trim still pass through from
+        /// the player so it doesn't feel like input is entirely taken away.
+        /// </summary>
+        public Vector3? AutopilotTarget { get; set; }
+        public bool AutopilotEngaged => AutopilotTarget.HasValue;
+
+        public void RequestFire() => FireRequested?.Invoke();
 
         Rigidbody _rb;
         HealthComponent _health;
@@ -75,17 +88,24 @@ namespace Ironfield.Drone
 
             Precision = _in.Precision;
 
-            // --- integrate the mouse reticle ------------------------------
-            float sens = aimSensitivity * GameSettings.AimSensitivity * (Precision ? precisionScale : 1f);
-            Vector2 delta = _in.AimDelta;
-            if (GameSettings.InvertY) delta.y = -delta.y;
-            _aim += delta * sens;
-            if (!useDebugInput)
+            if (AutopilotTarget.HasValue && !useDebugInput)
             {
-                // spring back toward centre so hands-off = fly straight
-                _aim = Vector2.Lerp(_aim, Vector2.zero, 1f - Mathf.Exp(-aimReturn * dt));
+                UpdateAutopilotAim(dt);
             }
-            if (_aim.magnitude > 1f) _aim = _aim.normalized;
+            else
+            {
+                // --- integrate the mouse reticle --------------------------
+                float sens = aimSensitivity * GameSettings.AimSensitivity * (Precision ? precisionScale : 1f);
+                Vector2 delta = _in.AimDelta;
+                if (GameSettings.InvertY) delta.y = -delta.y;
+                _aim += delta * sens;
+                if (!useDebugInput)
+                {
+                    // spring back toward centre so hands-off = fly straight
+                    _aim = Vector2.Lerp(_aim, Vector2.zero, 1f - Mathf.Exp(-aimReturn * dt));
+                }
+                if (_aim.magnitude > 1f) _aim = _aim.normalized;
+            }
 
             if (useDebugInput)
             {
@@ -151,6 +171,29 @@ namespace Ironfield.Drone
             _bank = Mathf.Lerp(_bank, targetBank, kk);
             _pitchVis = Mathf.Lerp(_pitchVis, targetPitch, kk);
             _rb.MoveRotation(Quaternion.Euler(_pitchVis, _heading, _bank));
+        }
+
+        /// <summary>
+        /// Converts a world point into the same (yaw-rate, pitch) aim space the
+        /// mouse normally drives, and full-sends the throttle. Proportional
+        /// control on heading error (aim.x integrates into heading over time —
+        /// see FixedUpdate) and a direct solve on pitch (aim.y maps straight to
+        /// pitch offset), smoothed so the takeover isn't a snap.
+        /// </summary>
+        void UpdateAutopilotAim(float dt)
+        {
+            Vector3 to = AutopilotTarget.Value - transform.position;
+            Vector3 toFlat = Vector3.ProjectOnPlane(to, Vector3.up);
+            float bearing = Vector3.SignedAngle(Vector3.forward, toFlat, Vector3.up);
+            float headingErr = Mathf.DeltaAngle(_heading, bearing);
+            float aimX = Mathf.Clamp(headingErr / 25f, -1f, 1f);
+
+            float dist = toFlat.magnitude;
+            float elevation = Mathf.Atan2(to.y, Mathf.Max(0.01f, dist)) * Mathf.Rad2Deg;
+            float aimY = Mathf.Clamp(-elevation / pitchRange, -1f, 1f);
+
+            _aim = Vector2.Lerp(_aim, new Vector2(aimX, aimY), 1f - Mathf.Exp(-8f * dt));
+            _in.Throttle = 1f;
         }
 
         void OnCollisionEnter(Collision c)

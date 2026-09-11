@@ -69,6 +69,14 @@ Destroy every vehicle to win; you fail if the column reaches the far end of the
 road, or you run out of drones. Tank / IFV turrets shoot back. The on-screen
 control legend fades after ~14 s; hold `H` to bring it back.
 
+**Auto-attack** (设置 → 自动攻击, off by default). Once you're hard-locked and
+already diving roughly at the target — the same commitment `DiveAssist`'s
+default gentle nudge looks for — turning this on hands the rest of the run to
+the drone: full autopilot onto the target plus an automatic detonation in
+range, no further input needed. It never grabs control on its own; it only
+ever takes over a dive you'd already started. The HUD shows **AUTO-ATTACK**
+in place of **LOCK** while it's flying itself.
+
 ## Layout
 
 - `Assets/Scripts/` — runtime code (`Ironfield.Runtime` asmdef)

@@ -25,6 +25,13 @@ namespace Ironfield.Targeting
         public float LockProgress { get; private set; }   // 0..1
         public bool HasHardLock => CurrentTarget != null && LockProgress >= 1f;
 
+        /// <summary>Test hook: while set, forces a hard lock onto this vehicle
+        /// every frame, bypassing the camera cone/LOS/dwell-time acquisition —
+        /// lets tests drive DiveAssist/auto-attack without depending on exact
+        /// camera-lag and terrain-LOS timing. Set to null to restore normal
+        /// selection.</summary>
+        public Vehicle DebugForceLockTarget;
+
         static readonly List<Vehicle> _scratch = new();
 
         void Awake()
@@ -34,6 +41,13 @@ namespace Ironfield.Targeting
 
         void LateUpdate()
         {
+            if (DebugForceLockTarget != null)
+            {
+                CurrentTarget = DebugForceLockTarget;
+                LockProgress = 1f;
+                return;
+            }
+
             if (viewCamera == null) viewCamera = Camera.main;
             if (viewCamera == null) { CurrentTarget = null; LockProgress = 0f; return; }
 
