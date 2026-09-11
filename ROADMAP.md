@@ -82,14 +82,18 @@
    容易把这次改动拖成一个既不稳又难 review 的大 diff。建议单独作为下一个
    任务来做,现在多任务系统的骨架(`MissionCatalog`/`CampaignProgress`)已经
    稳定,加"选无人机"UI 有地方接了。
-5. ⚠️ **音频,范围调整**:没有引入真实 CC0 录音素材(freesound.org 需要
-   OAuth 授权、Kenney 素材包的直链地址靠猜不可靠,贸然接入这次的改动风险
-   与 glTFast 那次类似)。改为:(a) 让"音效音量"滑条真的起作用——之前接了
-   UI 但没有任何声音源在听它,现在 `Explosion`/`Wreck`(爆炸/载具摧毁的合成
-   "boom")、新增的命中提示音("ping",`MakePingClip`)都读
-   `GameSettings.SfxVolume`;(b) 引擎音量同理接进 `MotorPitch`。**真实录音
-   素材仍是待办**,建议你在浏览器里挑几个 Kenney/freesound 的包后把直链发我,
-   我按 CREDITS.md 现有流程接进去,比我去猜链接可靠。
+5. ✅ **音频**(2026-09-11 补):自己上 kenney.nl 找到了直链(Kenney 的下载
+   按钮背后有个隐藏的 `#inline-download` 弹层,里面才是真实 zip 地址,不是
+   靠猜——跟 freesound.org 需要 OAuth 不同,Kenney 全部 CC0 且直链可
+   `curl`)。接入了三个真实录音,换掉了对应的合成占位音:爆炸/载具摧毁用
+   Sci-fi Sounds 包的 `lowFrequency_explosion`,命中提示音用 Impact Sounds
+   包的 `impactMetal_medium`,新加的 UI 点击反馈音用 Interface Sounds 包的
+   `click`(`Assets/Scripts/UI/UiSfx.cs`,`UiSfx.Button` 包了一层
+   `GUI.Button`,菜单/暂停/设置/结束面板的按钮全部换过去了)。素材存
+   `Assets/Audio/External/`,原始文件存 `tools/external_src/audio/`,署名在
+   CREDITS.md,流程跟模型资产完全一致。`GameSettings.SfxVolume` 现在真的有
+   声音源在听。**无人机引擎循环仍是合成音**——真实录音做循环需要专门处理
+   接缝,风险和收益都跟一次性音效不是一回事,优先级更低,留着。
 
 验收标准:一个玩家愿意打完 3 关而不是打完 1 关就关掉。**3 关已经可打通**,
 带 `MainMenu_loads_without_errors` 之外的两条新 PlayMode 冒烟测试验证

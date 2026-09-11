@@ -1,4 +1,5 @@
 using Ironfield.Core;
+using Ironfield.UI;
 using UnityEngine;
 
 namespace Ironfield.Mission
@@ -68,7 +69,7 @@ namespace Ironfield.Mission
             foreach (var (i, s) in PauseMenu.ControlLines())
                 GUI.Label(new Rect(px, py + 44 + i * 26, pw, 24), s, _line);
 
-            if (GUI.Button(new Rect(px + pw * 0.5f - 70, py + ph - 50, 140, 40), "开始出击", _btn))
+            if (UiSfx.Button(new Rect(px + pw * 0.5f - 70, py + ph - 50, 140, 40), "开始出击", _btn))
                 Dismiss();
         }
 

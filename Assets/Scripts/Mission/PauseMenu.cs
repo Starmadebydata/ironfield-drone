@@ -89,12 +89,12 @@ namespace Ironfield.Mission
 
             float bw = 220, bh = 44, gap = bh + 10;
             float bx = w * 0.5f - bw * 0.5f, by = h * 0.38f;
-            if (GUI.Button(new Rect(bx, by, bw, bh), "继续", _btn)) SetPaused(false);
-            if (GUI.Button(new Rect(bx, by + gap, bw, bh), "操作说明", _btn)) _showControls = true;
-            if (GUI.Button(new Rect(bx, by + gap * 2, bw, bh), "设置", _btn)) _showSettings = true;
-            if (GUI.Button(new Rect(bx, by + gap * 3, bw, bh), "重新开始", _btn))
+            if (UiSfx.Button(new Rect(bx, by, bw, bh), "继续", _btn)) SetPaused(false);
+            if (UiSfx.Button(new Rect(bx, by + gap, bw, bh), "操作说明", _btn)) _showControls = true;
+            if (UiSfx.Button(new Rect(bx, by + gap * 2, bw, bh), "设置", _btn)) _showSettings = true;
+            if (UiSfx.Button(new Rect(bx, by + gap * 3, bw, bh), "重新开始", _btn))
             { SetPaused(false); SceneFlow.RestartCurrent(); }
-            if (GUI.Button(new Rect(bx, by + gap * 4, bw, bh), "返回主菜单", _btn))
+            if (UiSfx.Button(new Rect(bx, by + gap * 4, bw, bh), "返回主菜单", _btn))
             { SetPaused(false); SceneFlow.LoadMainMenu(); }
         }
 
@@ -109,7 +109,7 @@ namespace Ironfield.Mission
             foreach (var (i, s) in ControlLines())
                 GUI.Label(new Rect(px + 22, py + 42 + i * 24, pw - 44, 22), s, _line);
 
-            if (GUI.Button(new Rect(px + pw * 0.5f - 60, py + ph - 46, 120, 34), "返回"))
+            if (UiSfx.Button(new Rect(px + pw * 0.5f - 60, py + ph - 46, 120, 34), "返回"))
                 _showControls = false;
         }
 

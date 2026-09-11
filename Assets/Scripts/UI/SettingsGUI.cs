@@ -52,11 +52,11 @@ namespace Ironfield.UI
             string[] names = QualitySettings.names;
             string cur = names.Length > 0 ? names[Mathf.Clamp(Core.GameSettings.QualityLevel, 0, names.Length - 1)] : "-";
             GUI.Label(new Rect(lx, y, lw, rowH), "画质", title);
-            if (GUI.Button(new Rect(sx, y, sw, rowH), cur))
+            if (UiSfx.Button(new Rect(sx, y, sw, rowH), cur))
                 Core.GameSettings.SetQualityLevel((Core.GameSettings.QualityLevel + 1) % Mathf.Max(1, names.Length));
             y += rowH + 14;
 
-            if (GUI.Button(new Rect(px + pw * 0.5f - 60, y, 120, 34), "返回"))
+            if (UiSfx.Button(new Rect(px + pw * 0.5f - 60, y, 120, 34), "返回"))
                 onBack?.Invoke();
         }
     }

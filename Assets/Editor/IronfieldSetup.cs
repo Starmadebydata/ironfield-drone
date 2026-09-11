@@ -511,7 +511,7 @@ namespace Ironfield.EditorTools
             var audio = go.AddComponent<AudioSource>();
             audio.spatialBlend = 1f; audio.minDistance = 8f; audio.maxDistance = 260f;
             audio.playOnAwake = true;
-            audio.clip = MakeBoomClip();
+            audio.clip = ExplosionClip();
 
             var prefab = SavePrefab(go, PrefabDir + "/Explosion.prefab");
             Object.DestroyImmediate(go);
@@ -735,7 +735,7 @@ namespace Ironfield.EditorTools
             wk.wreckedVisual = wreck;
             wk.fireSmokePrefab = fireSmoke;
             wk.fireLocalOffset = new Vector3(0f, height * 0.5f, 0f);
-            wk.destroyedSfx = MakeBoomClip();
+            wk.destroyedSfx = ExplosionClip();
 
             if (cls != VehicleClass.Truck)
             {
@@ -939,7 +939,7 @@ namespace Ironfield.EditorTools
             hud.mission = mgr;
             hud.targeting = targeting;
             hud.cameraRig = rig;
-            hud.hitPingClip = MakePingClip();
+            hud.hitPingClip = HitPingClip();
 
             var pause = mgrGo.AddComponent<PauseMenu>();
             pause.mission = mgr;
@@ -1071,6 +1071,11 @@ namespace Ironfield.EditorTools
 
             var menuGo = new GameObject("MainMenu");
             menuGo.AddComponent<MainMenuController>();
+
+            // DontDestroyOnLoad in UiSfx.Awake() carries this into every later
+            // scene, so every IMGUI button in the game gets the same click.
+            var uiSfxGo = new GameObject("UiSfx");
+            uiSfxGo.AddComponent<UiSfx>().clickClip = UiClickClip();
 
             EditorSceneManager.MarkSceneDirty(scene);
             Directory.CreateDirectory(ScenesDir);
@@ -2095,6 +2100,16 @@ namespace Ironfield.EditorTools
         }
 
         const string AudioDir = "Assets/Audio";
+        const string AudioExtDir = "Assets/Audio/External/";
+
+        // Real CC0 recordings from Kenney (https://kenney.nl) — see CREDITS.md.
+        // Fall back to the synthesised clip if a file ever goes missing so a
+        // rebuild can't hard-fail on a stale/partial Assets/Audio/External.
+        static AudioClip LoadExternalClip(string fileName) =>
+            AssetDatabase.LoadAssetAtPath<AudioClip>(AudioExtDir + fileName);
+        static AudioClip ExplosionClip() => LoadExternalClip("explosion_boom.ogg") ?? MakeBoomClip();
+        static AudioClip HitPingClip() => LoadExternalClip("hit_ping.ogg") ?? MakePingClip();
+        static AudioClip UiClickClip() => LoadExternalClip("ui_click.ogg");
 
         static AudioClip MakeBoomClip() => LoadOrWriteWav("boom", () =>
         {

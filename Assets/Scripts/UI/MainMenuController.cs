@@ -55,11 +55,11 @@ namespace Ironfield.UI
                 "无人机突袭 · 一片虚构的东欧战线", _subtitle);
 
             float bw = 240, bh = 48, bx = w * 0.5f - bw * 0.5f, by = h * 0.46f, gap = bh + 14;
-            if (GUI.Button(new Rect(bx, by, bw, bh), "开始任务", _btn))
+            if (UiSfx.Button(new Rect(bx, by, bw, bh), "开始任务", _btn))
                 _panel = Panel.Missions;
-            if (GUI.Button(new Rect(bx, by + gap, bw, bh), "设置", _btn))
+            if (UiSfx.Button(new Rect(bx, by + gap, bw, bh), "设置", _btn))
                 _panel = Panel.Settings;
-            if (GUI.Button(new Rect(bx, by + gap * 2, bw, bh), "退出", _btn))
+            if (UiSfx.Button(new Rect(bx, by + gap * 2, bw, bh), "退出", _btn))
                 SceneFlow.Quit();
 
             GUI.Label(new Rect(14, h - 20, 640, 18),
@@ -83,7 +83,7 @@ namespace Ironfield.UI
                 Rect r = new Rect(cx, cy + i * (ch + gap), cw, ch);
 
                 GUI.enabled = unlocked;
-                if (GUI.Button(r, string.Empty))
+                if (UiSfx.Button(r, string.Empty))
                     SceneFlow.LoadMissionByName(e.SceneName);
                 GUI.enabled = true;
 
@@ -96,7 +96,7 @@ namespace Ironfield.UI
             }
 
             float backY = cy + entries.Length * (ch + gap) + 8;
-            if (GUI.Button(new Rect(w * 0.5f - 60, backY, 120, 34), "返回"))
+            if (UiSfx.Button(new Rect(w * 0.5f - 60, backY, 120, 34), "返回"))
                 _panel = Panel.Title;
         }
     }

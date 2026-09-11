@@ -29,6 +29,17 @@ rescaled and fitted with gameplay parts by `Assets/Editor/IronfieldSetup.cs`.
 | House | "small_buildingB" | **Kenney** | **CC0** | https://poly.pizza/m/QjL4Fo9dU9 |
 | Block | "Building3 Big" | **Quaternius** | **CC0** | https://poly.pizza/m/AVCS8jUd2l |
 
+## Sound effects — `Assets/Audio/External/`
+Downloaded from **Kenney** (https://kenney.nl), all **CC0** (no attribution
+required — credited here anyway to match this project's asset-sourcing
+convention). Originals kept under `tools/external_src/audio/`.
+
+| In game | File | Source pack |
+|---|---|---|
+| Explosion / vehicle destroyed | `explosion_boom.ogg` | Sci-fi Sounds — https://kenney.nl/assets/sci-fi-sounds |
+| Hit marker ping | `hit_ping.ogg` | Impact Sounds — https://kenney.nl/assets/impact-sounds |
+| UI click | `ui_click.ogg` | Interface Sounds — https://kenney.nl/assets/interface-sounds |
+
 ---
 
 Terrain heightmap & textures, road ribbon mesh, bushes, rocks, craters,

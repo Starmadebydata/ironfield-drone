@@ -3,6 +3,7 @@ using Ironfield.Combat;
 using Ironfield.Core;
 using Ironfield.Drone;
 using Ironfield.Targeting;
+using Ironfield.UI;
 using Ironfield.Vehicles;
 using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
@@ -416,16 +417,16 @@ namespace Ironfield.Mission
             string next = won ? MissionCatalog.NextSceneName(mission.missionId) : null;
             if (next != null)
             {
-                if (GUI.Button(new Rect(w * 0.5f - 100, h * 0.60f, 200, 42), "Next Mission ▶"))
+                if (UiSfx.Button(new Rect(w * 0.5f - 100, h * 0.60f, 200, 42), "Next Mission ▶"))
                     SceneFlow.LoadMissionByName(next);
             }
 
             float row2 = won && next != null ? h * 0.60f + 52f : h * 0.62f;
-            if (GUI.Button(new Rect(w * 0.5f - 172, row2, 104, 40), "Restart"))
+            if (UiSfx.Button(new Rect(w * 0.5f - 172, row2, 104, 40), "Restart"))
                 SceneFlow.RestartCurrent();
-            if (GUI.Button(new Rect(w * 0.5f - 60, row2, 120, 40), "Main Menu"))
+            if (UiSfx.Button(new Rect(w * 0.5f - 60, row2, 120, 40), "Main Menu"))
                 SceneFlow.LoadMainMenu();
-            if (GUI.Button(new Rect(w * 0.5f + 68, row2, 104, 40), "Quit"))
+            if (UiSfx.Button(new Rect(w * 0.5f + 68, row2, 104, 40), "Quit"))
                 SceneFlow.Quit();
         }
     }
