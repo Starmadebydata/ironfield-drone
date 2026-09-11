@@ -120,6 +120,36 @@ Also on the **Ironfield** editor menu ("9. Build Dev Player (perf)"). This
 measures the built Player, not the editor — editor overhead makes in-editor
 frame timing meaningless for real perf numbers.
 
+## Recording a demo video
+
+`Assets/Scripts/Mission/DemoRunner.cs` (`-demo`) drives a full scripted
+playthrough — menu, mission list, first-run tip, a manual kill, a pause-menu
+detour, an auto-attack kill, the rest of the column, a real win screen, back
+to the main menu — through the same debug hooks the tests use, so it's real
+gameplay, not a separate fake. `Assets/Scripts/Core/DemoRecorder.cs`
+(`-record`) captures the game's own rendered frames straight to disk at 15fps
+via `ScreenCapture.CaptureScreenshotAsTexture` — no OS screen-recording
+permission needed, and nothing outside the game window can ever appear in a
+frame, unlike an OS-level screen capture.
+
+```bash
+# 1. build a Development Player, same as the perf check above
+Unity -batchmode -quit -projectPath . \
+  -executeMethod Ironfield.EditorTools.IronfieldSetup.BuildDevPlayer
+
+# 2. run it with both flags; it quits on its own once the script finishes —
+#    watch ~/Library/Logs/NorthfallGames/Ironfield/Player.log for
+#    "[DemoRunner] demo complete" and stop it promptly, or the recording just
+#    keeps capturing an idle main menu
+Builds/DevPerf/Ironfield.app/Contents/MacOS/Ironfield -demo -record \
+  -screen-width 1280 -screen-height 720
+
+# 3. stitch the frames into a video
+ffmpeg -framerate 15 \
+  -i "$HOME/Library/Application Support/NorthfallGames/Ironfield/frames/frame_%05d.jpg" \
+  -c:v libx264 -pix_fmt yuv420p -r 30 demo.mp4
+```
+
 ## Known prototype limitations
 
 IMGUI throughout (menus included — see ROADMAP.md P2 for the uGUI/TMP pass),
