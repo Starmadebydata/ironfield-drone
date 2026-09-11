@@ -1,9 +1,11 @@
 # Ironfield — 从原型到可交付产品的路线图
 
-现状(2026-09-11):三关 `Mission01-03`,IMGUI 主菜单/HUD,两种无人机(轻型/
-重型,打通 Mission01 解锁重型)、三种载具、关卡进度存档,音频接了部分真实
-CC0 录音,Built-in 渲染管线未做美术终审。可玩、可通关/失败,内容量比早期的
-单关竖切片厚不少,但美术/音效终审和上架准备(P2/P3)还没做。
+现状(2026-09-12):三关 `Mission01-03`(2048×2048m 地图,带边界系统+
+可选支线目标/地标),IMGUI 主菜单/HUD,两种无人机(轻型/重型,打通
+Mission01 解锁重型)、四种载具(坦克/IFV/卡车/自行高炮)、关卡进度存档,
+音频接了部分真实 CC0 录音,**已迁移到 URP**(Volume 后处理调色代替了旧的
+Built-in 自定义 shader)。可玩、可通关/失败,内容量比早期的单关竖切片厚
+不少,上架准备(P3)还没做。
 
 下面按"能不能发布"划分四个阶段。P0 是把当前这一关做扎实到能放到 itch.io 上
 让陌生人玩不懵、不出戏;P1 让它像个游戏而不是一关;P2/P3 是打磨与上架。
@@ -122,17 +124,53 @@ EditMode 单测(解锁链、最佳成绩、胜负不同结果)。EditMode 14/14�
 
 ## P2 — 打磨与工程债(让它经得起别人看)
 
-**状态(2026-09-11):2、3(一半)、4(三分之二)、5 已实现;1 明确留到有交互式
-编辑器会话时再做。**(最初把"真机"理解成了需要专门的目标测试设备,用户
-指出这其实就是"把游戏编译成正式安装包,在会用来玩的电脑上跑"——这台 Mac
-本身就是目标机器,不需要额外硬件,于是把 2 补上了。)
+**状态(2026-09-12):1、2、3(一半)、4(三分之二)、5 已实现。**(最初把
+"真机"理解成了需要专门的目标测试设备,用户指出这其实就是"把游戏编译成正式
+安装包,在会用来玩的电脑上跑"——这台 Mac 本身就是目标机器,不需要额外硬件,
+于是把 2 补上了。)
 
-1. ⛔ **URP 迁移:这次没做**。这本来就是路线图里标了"建议单独开分支做"的
-   一次性大改动——材质升级向导、自定义 `IronfieldPost.shader` 在 URP 下的
-   兼容性、光照参数重调,都需要边改边在编辑器里肉眼核对画面,而这次是纯
-   无头(headless batchmode)执行,没有交互式会话能做这种视觉验收。贸然做会
-   把"看起来对不对"这件事变成完全靠猜。继续按原计划留到有空开编辑器窗口
-   核对画面的时候单独做。
+1. ✅ **URP 迁移(2026-09-12 补)**:之前明确"这次没做",理由是材质升级、
+   自定义 shader 兼容性、光照重调都"需要边改边在编辑器里肉眼核对",而无头
+   会话没有交互式验收手段——**这次补上的关键是发现整个项目的材质从来不是手工
+   在 Inspector 里配的,而是 `IronfieldSetup.cs` 里 `MakeStandard`/
+   `MakeUnlit`/`MakeFx` 这三个函数统一代码生成的**,所以"肉眼核对"这件事
+   可以用这次会话里已经反复验证过的手段代替——改代码 → 无头 rebuild → 无头
+   截图 → 读图核对,不需要交互式编辑器。
+   - `EnsureUrpAsset()`(Ironfield 菜单第 0b 项):脚本创建
+     `UniversalRendererData` + `UniversalRenderPipelineAsset`
+     (`UniversalRenderPipelineAsset.Create(rendererData)`,公开 API,不是
+     反射黑魔法),配置阴影距离/级联/分辨率(URP 把这些配置放在 Pipeline
+     Asset 上,不再是 `QualitySettings`),赋给
+     `GraphicsSettings.defaultRenderPipeline` 和
+     `QualitySettings.renderPipeline`。
+   - 材质:`Shader.Find("Standard")` 全部换成
+     `"Universal Render Pipeline/Lit"`,`_Glossiness` 属性名改成 URP 的
+     `_Smoothness`(`_Metallic`/`.color` 两边同名,不用改——URP shader 上的
+     `[MainColor]` 特性让 `Material.color` 照常生效)。FX/粒子材质
+     (`MakeFx`,原来用 `Sprites/Default`)换成
+     `"Universal Render Pipeline/Unlit"` + 手动挡 Transparent surface 的
+     那一套属性/关键字/renderQueue(`SetTransparent` 辅助方法)——等效于
+     以前 Inspector 里把 Surface Type 切到 Transparent 那个操作。
+   - `Run()` 的素材清理逻辑从"只删 `M_ext_*`"改成"删 `SettingsDir` 下全部
+     材质",不然旧材质文件会照样引用 Built-in Standard shader,改了代码也
+     不会在磁盘上生效——**副作用是顺手清掉了一批早就没人引用的孤儿材质
+     文件**(`M_bark.mat`/`M_leaf0.mat`/`Sky.mat`/没加 `fx_` 前缀的旧粒子
+     材质等,来自会话更早期几次命名重构,一直没人删)。
+   - `Ironfield/Post` 自定义全屏 shader(`OnRenderImage`,Built-in 专属回调,
+     URP 渲染器根本不会调用它)整个删除,换成 URP 自带的 Volume 后处理框架
+     ——`BuildPostVolumeProfile()` 用 `ColorAdjustments`(对比度+11%、
+     饱和度+14%,对应旧 shader 的效果)+ `Vignette`(强度 0.26)两个 URP
+     内置 Volume Override 做等效的"更有质感"调色,**不需要额外的
+     Post-Processing 包**——URP 14+ 已经把 Volume 框架收进核心包了,当初
+     "没装 post-processing 包"那条理由已经过时。阴影色调没做等效移植
+     (次要细节,无头核对成本高,原样砍掉)。
+   - 验证:无头 rebuild 0 编译错误、0 报错;`IronfieldSetup.Screenshot` 全部
+     现有截图位重新核对了一遍(载具/无人机/村庄/新增内容全部截图对比,没有
+     粉色/紫色缺失 shader 的迹象);另外跑了一次
+     `IronfieldSetup.BuildDevPlayer()`——URP 出了名容易在 Build 时把
+     Editor 预览用得到、但实际 Build 没引用到的 shader 变体裁掉(shader
+     stripping),导致 Editor 里看着对、Build 里变粉——这次构建
+     **0 errors 0 warnings**,说明没有被裁掉必需变体。
 2. ✅ **真机性能 profiling**(2026-09-11 补):加了 `PerfHarness.cs`——用
    `-perftest` 命令行参数启动正式构建的版本,会自动跳过菜单直接进最重的
    `Mission03`,强制无人机全速直飞 20 秒,记录帧率后自动退出并写日志。配套

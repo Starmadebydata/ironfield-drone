@@ -39,7 +39,7 @@ namespace Ironfield.Vehicles
             else if (charInPlace && intactVisual)
             {
                 if (s_charred == null)
-                    s_charred = new Material(Shader.Find("Standard"))
+                    s_charred = new Material(Shader.Find("Universal Render Pipeline/Lit"))
                     {
                         color = new Color(0.05f, 0.045f, 0.04f)
                     };
