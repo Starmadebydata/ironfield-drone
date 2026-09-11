@@ -178,12 +178,14 @@ namespace Ironfield.EditorTools
             AssetDatabase.Refresh();
 
             var tuning = CreateTuning();
+            var tuningHeavy = CreateHeavyTuning();
             BuildExplosionPrefab();
             BuildFireSmokePrefab();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
 
-            BuildDronePrefab(tuning);
+            BuildDronePrefab(tuning, DroneBuildConfig.Light);
+            BuildDronePrefab(tuningHeavy, DroneBuildConfig.Heavy);
             BuildVehiclePrefab("Tank", ArtTank, VehicleClass.Tank, 900f, 60f, 3.6f, 7.6f, 2.7f);
             BuildVehiclePrefab("IFV", ArtIFV, VehicleClass.IFV, 420f, 25f, 3.2f, 6.2f, 2.9f);
             BuildVehiclePrefab("Truck", ArtTruck, VehicleClass.Truck, 160f, 0f, 2.7f, 8.2f, 3.3f);
@@ -302,6 +304,22 @@ namespace Ironfield.EditorTools
                 // top-down: a real quad shows 4 flat discs, a broken one shows 4 thin lines
                 Shot(cam, d.transform.position + Vector3.up * 7f, d.transform.position,
                      "Ironfield_smoke_drone_top.png");
+                Object.DestroyImmediate(d);
+            }
+
+            // heavy drone shot: same framing, side-by-side comparable with the shot above
+            var dronePfHeavy = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Drone_Heavy.prefab");
+            if (dronePfHeavy != null && launch != null)
+            {
+                var d = (GameObject)PrefabUtility.InstantiatePrefab(dronePfHeavy);
+                d.transform.position = launch.transform.position;
+                d.transform.rotation = launch.transform.rotation;
+                var dc = d.GetComponent<Ironfield.Drone.DroneController>();
+                if (dc != null && dc.propSpinners != null)
+                    foreach (var p in dc.propSpinners) if (p) p.Rotate(Vector3.up, 30f, Space.World);
+                Vector3 back = -launch.transform.forward;
+                Vector3 eye3 = d.transform.position + back * 6f + Vector3.up * 2.3f;
+                Shot(cam, eye3, d.transform.position + d.transform.forward * 3f, "Ironfield_smoke_drone_heavy.png");
                 Object.DestroyImmediate(d);
             }
             _ = scene;
@@ -519,6 +537,34 @@ namespace Ironfield.EditorTools
             return t;
         }
 
+        /// <summary>Second drone type — slower and sluggish to turn, but far
+        /// tougher and hits much harder. A real tradeoff, not a strict upgrade:
+        /// the Light drone stays the better pick when speed/agility matter (most
+        /// dives, evading return fire); Heavy earns its keep against flak-heavy
+        /// missions and one-shotting armoured high-value targets.</summary>
+        static DroneTuning CreateHeavyTuning()
+        {
+            string p = SettingsDir + "/DroneTuning_Heavy.asset";
+            var t = AssetDatabase.LoadAssetAtPath<DroneTuning>(p);
+            if (t == null)
+            {
+                t = ScriptableObject.CreateInstance<DroneTuning>();
+                AssetDatabase.CreateAsset(t, p);
+            }
+            t.maxSpeed = 17f;                // -23% vs Light: sluggish
+            t.boostMaxSpeed = 30f;           // -25%
+            t.yawRate = 85f;                 // -23%: turns slower too
+            t.climbAccel = 10f;
+            t.gravity = 9.81f;
+            t.linearDrag = 2.0f;             // heavier, slower to respond to throttle changes
+            t.angularDamp = 8f;
+            t.maxHealth = 95f;               // +73%: shrugs off return fire that would kill a Light
+            t.warheadDamage = 900f;          // +38%
+            t.warheadRadius = 6.5f;          // +18%: more forgiving near-miss radius
+            EditorUtility.SetDirty(t);
+            return t;
+        }
+
         static Explosion BuildExplosionPrefab()
         {
             var go = new GameObject("Explosion");
@@ -556,7 +602,37 @@ namespace Ironfield.EditorTools
             return prefab.GetComponentInChildren<ParticleSystem>();
         }
 
-        static DroneController BuildDronePrefab(DroneTuning tuning)
+        /// <summary>Visual identity for one drone variant — same imported FBX,
+        /// different size/tint so Light and Heavy read as distinct at a glance
+        /// (and their generated materials don't collide, since MakeStandard
+        /// caches by name).</summary>
+        struct DroneBuildConfig
+        {
+            public string prefabName;
+            public float sizeMultiplier;
+            public Color airframeColor;
+            public Color rotorColor;
+
+            public static readonly DroneBuildConfig Light = new()
+            {
+                prefabName = "Drone",
+                sizeMultiplier = 1f,
+                airframeColor = new Color(0.055f, 0.055f, 0.065f),   // dark carbon
+                rotorColor = new Color(0.16f, 0.16f, 0.18f),          // gunmetal
+            };
+            // Bulkier silhouette + an armoured olive tint (same treatment as
+            // Militarize on the tank) so it visually reads as "heavier armour",
+            // matching the tuning: slower, tankier, hits harder.
+            public static readonly DroneBuildConfig Heavy = new()
+            {
+                prefabName = "Drone_Heavy",
+                sizeMultiplier = 1.22f,
+                airframeColor = Militarize(new Color(0.10f, 0.11f, 0.08f)),
+                rotorColor = new Color(0.14f, 0.15f, 0.13f),
+            };
+        }
+
+        static DroneController BuildDronePrefab(DroneTuning tuning, DroneBuildConfig cfg)
         {
             var explosion = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Explosion.prefab")
                 ?.GetComponent<Explosion>();
@@ -570,7 +646,7 @@ namespace Ironfield.EditorTools
             if (model != null)
                 PrefabUtility.UnpackPrefabInstance(root, PrefabUnpackMode.Completely,
                     InteractionMode.AutomatedAction);
-            root.name = "Drone";
+            root.name = cfg.prefabName;
             root.tag = GameTags.Drone;
             SetLayerRecursive(root, GameLayers.Drone);
 
@@ -582,7 +658,7 @@ namespace Ironfield.EditorTools
             visualRoot.transform.SetParent(root.transform, false);
             foreach (var k in existingKids) k.SetParent(visualRoot.transform, true);
 
-            const float targetSpan = 3.0f;   // metres, motor to motor
+            float targetSpan = 3.0f * cfg.sizeMultiplier;   // metres, motor to motor
             var mfs = visualRoot.GetComponentsInChildren<MeshFilter>();
             float span = 0f;
             foreach (var mf in mfs)
@@ -593,12 +669,13 @@ namespace Ironfield.EditorTools
                 }
             float mult = span > 0.001f ? targetSpan / span : 10f;
             visualRoot.transform.localScale = Vector3.one * mult;
-            Debug.Log($"[Ironfield] drone visual span={span:0.00}m  ->  scale x{mult:0.00}  (meshes={mfs.Length})");
+            Debug.Log($"[Ironfield] {cfg.prefabName} visual span={span:0.00}m  ->  scale x{mult:0.00}  (meshes={mfs.Length})");
 
             // --- retint: the imported palette texture doesn't survive the
-            //     glb->fbx hop, so give the airframe a proper dark-carbon look.
-            var carbon = MakeStandard("drone_carbon", new Color(0.055f, 0.055f, 0.065f), 0.4f, 0.15f);
-            var gunmetal = MakeStandard("drone_gunmetal", new Color(0.16f, 0.16f, 0.18f), 0.55f, 0.6f);
+            //     glb->fbx hop, so give the airframe a proper dark-carbon look
+            //     (or, for the Heavy variant, an armoured olive one).
+            var carbon = MakeStandard(cfg.prefabName + "_carbon", cfg.airframeColor, 0.4f, 0.15f);
+            var gunmetal = MakeStandard(cfg.prefabName + "_gunmetal", cfg.rotorColor, 0.55f, 0.6f);
             foreach (var r in visualRoot.GetComponentsInChildren<MeshRenderer>())
             {
                 string rn = r.name.ToLowerInvariant();
@@ -681,7 +758,7 @@ namespace Ironfield.EditorTools
             a.clip = MakeMotorClip();
             trail.AddComponent<MotorPitch>();
 
-            var prefab = SavePrefab(root, PrefabDir + "/Drone.prefab");
+            var prefab = SavePrefab(root, PrefabDir + "/" + cfg.prefabName + ".prefab");
             Object.DestroyImmediate(root);
             return prefab.GetComponent<DroneController>();
         }
@@ -953,6 +1030,8 @@ namespace Ironfield.EditorTools
             var mgr = mgrGo.AddComponent<MissionManager>();
             mgr.dronePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Drone.prefab")
                 .GetComponent<DroneController>();
+            mgr.dronePrefabHeavy = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Drone_Heavy.prefab")
+                ?.GetComponent<DroneController>();
             mgr.launchPoint = launch.transform;
             mgr.cameraRig = rig;
             mgr.droneStock = cfg.droneStock;

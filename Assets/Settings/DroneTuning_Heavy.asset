@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4e64272922b95459da48867b6a282ed1, type: 3}
+  m_Name: DroneTuning_Heavy
+  m_EditorClassIdentifier: Ironfield.Runtime::Ironfield.Drone.DroneTuning
+  thrustAccel: 22
+  boostMultiplier: 2.1
+  maxSpeed: 17
+  boostMaxSpeed: 30
+  linearDrag: 2
+  pitchRate: 160
+  rollRate: 220
+  yawRate: 85
+  angularDamp: 8
+  selfLevel: 0.35
+  gravity: 9.81
+  climbAccel: 10
+  maxHealth: 95
+  warheadDamage: 900
+  warheadRadius: 6.5

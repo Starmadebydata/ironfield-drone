@@ -46,6 +46,12 @@ static flak position — indestructible, forces you to vary your approach) →
 worth a score bonus). Convoys get faster mission over mission. A win screen
 gets a "Next Mission ▶" button straight into the next unlocked slot.
 
+**Drone type.** The mission list has a picker above it: **轻型无人机** (Light,
+always available — standard health/speed/agility) vs **重型无人机** (Heavy,
+unlocks once Mission01 is cleared — more health and a bigger warhead, but
+slower and less agile). The choice applies campaign-wide until you change it;
+the HUD's DRONES counter shows which type is currently flying.
+
 **Mouse-aim flight.** The mouse moves an aim reticle inside the ring; the drone
 continuously turns its nose onto the reticle and flies where you point. Hands off
 the mouse and it flies straight.

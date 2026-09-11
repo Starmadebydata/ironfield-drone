@@ -20,6 +20,9 @@ namespace Ironfield.Mission
     {
         [Header("Scene refs")]
         public DroneController dronePrefab;
+        [Tooltip("Optional second drone type. Chosen instead of dronePrefab when "
+                + "GameSettings.SelectedDrone == 1 (see the main menu's drone picker).")]
+        public DroneController dronePrefabHeavy;
         public Transform launchPoint;
         public DroneCameraRig cameraRig;
         public TargetingSystem targeting;
@@ -126,7 +129,9 @@ namespace Ironfield.Mission
             Quaternion rot = launchPoint ? launchPoint.rotation : Quaternion.identity;
 
             _currentDroneSpent = false;
-            ActiveDrone = Instantiate(dronePrefab, pos, rot);
+            var chosenPrefab = (GameSettings.SelectedDrone == 1 && dronePrefabHeavy != null)
+                ? dronePrefabHeavy : dronePrefab;
+            ActiveDrone = Instantiate(chosenPrefab, pos, rot);
             int droneLayer = GameLayers.Drone;
             if (droneLayer >= 0) SetLayer(ActiveDrone.gameObject, droneLayer);
 

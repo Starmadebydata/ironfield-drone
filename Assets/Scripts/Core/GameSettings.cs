@@ -20,6 +20,7 @@ namespace Ironfield.Core
         const string KColorblind = "ironfield.a11y.colorblind";
         const string KCameraShake = "ironfield.a11y.camerashake";
         const string KAutoAttack = "ironfield.autoattack";
+        const string KSelectedDrone = "ironfield.selecteddrone";
 
         public static float MasterVolume { get; private set; } = 1f;
         public static float SfxVolume { get; private set; } = 1f;
@@ -38,6 +39,9 @@ namespace Ironfield.Core
         /// Off by default — manual flying is the core skill of this game; this is
         /// an opt-in convenience/accessibility toggle, not the default experience.</summary>
         public static bool AutoAttack { get; private set; }
+        /// <summary>0 = Light (default, always unlocked), 1 = Heavy (unlocked once
+        /// Mission02 is — i.e. after winning Mission01, see CampaignProgress).</summary>
+        public static int SelectedDrone { get; private set; }
 
         static bool _loaded;
 
@@ -54,6 +58,7 @@ namespace Ironfield.Core
             ColorblindMode = PlayerPrefs.GetInt(KColorblind, 0) != 0;
             CameraShake = PlayerPrefs.GetInt(KCameraShake, 1) != 0;
             AutoAttack = PlayerPrefs.GetInt(KAutoAttack, 0) != 0;
+            SelectedDrone = PlayerPrefs.GetInt(KSelectedDrone, 0);
             Apply();
         }
 
@@ -66,6 +71,7 @@ namespace Ironfield.Core
         public static void SetColorblindMode(bool v) { ColorblindMode = v; Save(); }
         public static void SetCameraShake(bool v) { CameraShake = v; Save(); }
         public static void SetAutoAttack(bool v) { AutoAttack = v; Save(); }
+        public static void SetSelectedDrone(int v) { SelectedDrone = Mathf.Clamp(v, 0, 1); Save(); }
 
         static void Apply()
         {
@@ -85,6 +91,7 @@ namespace Ironfield.Core
             PlayerPrefs.SetInt(KColorblind, ColorblindMode ? 1 : 0);
             PlayerPrefs.SetInt(KCameraShake, CameraShake ? 1 : 0);
             PlayerPrefs.SetInt(KAutoAttack, AutoAttack ? 1 : 0);
+            PlayerPrefs.SetInt(KSelectedDrone, SelectedDrone);
             PlayerPrefs.Save();
         }
 

@@ -132,7 +132,8 @@ namespace Ironfield.Mission
             // --- top-left status --------------------------------------
             GUI.Label(new Rect(24, 18, 520, 24),
                 $"COLUMN   {mission.Killed}/{mission.VehiclesTotal} destroyed", _label);
-            GUI.Label(new Rect(24, 42, 520, 24), $"DRONES   {mission.DronesLeft}", _label);
+            string droneType = GameSettings.SelectedDrone == 1 ? "重型" : "轻型";
+            GUI.Label(new Rect(24, 42, 520, 24), $"DRONES   {mission.DronesLeft}   ({droneType})", _label);
             if (mission.Escaped > 0)
             {
                 var warn = new GUIStyle(_label);

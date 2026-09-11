@@ -85,12 +85,15 @@ namespace Ironfield.UI
 
         void DrawMissions(float w, float h)
         {
-            GUI.Label(new Rect(0, h * 0.14f, w, 34), "选择任务", _sectionTitle);
+            GUI.Label(new Rect(0, h * 0.08f, w, 34), "选择任务", _sectionTitle);
+
+            float droneY = h * 0.08f + 42;
+            float droneH = DrawDronePicker(w, droneY);
 
             var entries = MissionCatalog.All;
             float cw = 420, ch = 72, gap = 14;
             float cx = w * 0.5f - cw * 0.5f;
-            float cy = h * 0.14f + 50;
+            float cy = droneY + droneH + 22;
 
             for (int i = 0; i < entries.Length; i++)
             {
@@ -115,6 +118,36 @@ namespace Ironfield.UI
             float backY = cy + entries.Length * (ch + gap) + 8;
             if (UiSfx.Button(new Rect(w * 0.5f - 60, backY, 120, 34), "返回"))
                 _panel = Panel.Title;
+        }
+
+        /// <summary>Light/Heavy drone picker, drawn above the mission list since
+        /// the choice applies campaign-wide, not per mission. Returns the row's
+        /// height so the caller can lay out what comes after it.</summary>
+        float DrawDronePicker(float w, float y)
+        {
+            const float dw = 210, dh = 54, dgap = 16;
+            float startX = w * 0.5f - (dw * 2 + dgap) * 0.5f;
+            bool heavyUnlocked = CampaignProgress.IsUnlocked(1);
+
+            DrawDroneOption(new Rect(startX, y, dw, dh), 0,
+                "轻型无人机", "标准 · 敏捷", true);
+            DrawDroneOption(new Rect(startX + dw + dgap, y, dw, dh), 1,
+                "重型无人机", heavyUnlocked ? "重装甲 · 高伤害 · 较慢" : "打通任务01解锁", heavyUnlocked);
+
+            return dh;
+        }
+
+        void DrawDroneOption(Rect r, int index, string name, string sub, bool unlocked)
+        {
+            bool selected = GameSettings.SelectedDrone == index;
+            GUI.enabled = unlocked;
+            if (UiSfx.Button(r, string.Empty, _btn) && unlocked)
+                GameSettings.SetSelectedDrone(index);
+            GUI.enabled = true;
+
+            string label = (selected ? "✓ " : "") + (unlocked ? name : name + "  🔒");
+            GUI.Label(new Rect(r.x + 12, r.y + 6, r.width - 24, 20), label, _missionName);
+            GUI.Label(new Rect(r.x + 12, r.y + 28, r.width - 24, 20), sub, _missionSub);
         }
     }
 }
