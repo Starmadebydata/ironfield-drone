@@ -916,16 +916,11 @@ namespace Ironfield.EditorTools
             // --- road + convoy path --------------------------------
             var pathParent = new GameObject("ConvoyPath").transform;
             var waypoints = new List<Transform>();
-            Vector3[] pts =
-            {
-                new(-300, 0, -190), new(-180, 0, -120), new(-70, 0, -60),
-                new(40, 0, 0), new(150, 0, 60), new(300, 0, 170), new(430, 0, 300),
-            };
-            for (int i = 0; i < pts.Length; i++)
+            for (int i = 0; i < RoadPoints.Length; i++)
             {
                 var wp = new GameObject($"WP_{i}").transform;
                 wp.SetParent(pathParent);
-                Vector3 p = pts[i];
+                Vector3 p = RoadPoints[i];
                 p.y = SampleHeight(terrain, p) ;
                 wp.position = p;
                 waypoints.Add(wp);
@@ -1195,8 +1190,25 @@ namespace Ironfield.EditorTools
             EditorSceneManager.SaveScene(scene, MainMenuScenePath);
         }
 
-        static readonly Vector3 TerrainOrigin = new(-512, 0, -512);
+        // Map was 1024x1024 through 2026-09-11; a player flying in any direction
+        // away from the road hit open terrain edge in under 20s at cruise speed
+        // (worse with boost) with nothing to see on the way there. Doubled to
+        // 2048x2048 (4x the area) — the road/village/launch point keep their
+        // existing absolute coordinates, so this just adds open flyable margin
+        // on every side rather than requiring every hardcoded prop position in
+        // this file to be rescaled. See DroneBoundary for what stops a player
+        // who still flies past *that* edge.
+        static readonly Vector3 TerrainOrigin = new(-1024, 0, -1024);
         static readonly Vector3 LaunchHillCentre = new(-200, 0, 100);
+        // Road polyline in world space — used both to lay out the convoy path
+        // (BuildScene) and, via distance-to-polyline, to flatten a corridor for
+        // it while sculpting the heightmap (BuildTerrain runs before the actual
+        // waypoint Transforms exist, so it needs its own copy of the route).
+        static readonly Vector3[] RoadPoints =
+        {
+            new(-300, 0, -190), new(-180, 0, -120), new(-70, 0, -60),
+            new(40, 0, 0), new(150, 0, 60), new(300, 0, 170), new(430, 0, 300),
+        };
 
         static float Fbm(float x, float y, int oct, float lac = 2.03f, float gain = 0.5f)
         {
@@ -1213,8 +1225,10 @@ namespace Ironfield.EditorTools
         {
             var data = new TerrainData
             {
-                heightmapResolution = 513,
-                size = new Vector3(1024, 110, 1024),
+                // 1025 keeps per-metre detail on the now-2048m-wide map the same
+                // as the old 513-sample 1024m map (both ~2m/sample).
+                heightmapResolution = 1025,
+                size = new Vector3(2048, 110, 2048),
             };
             int res = data.heightmapResolution;
             var h = new float[res, res];
@@ -1226,14 +1240,20 @@ namespace Ironfield.EditorTools
                 float wx = TerrainOrigin.x + nx * data.size.x;
                 float wz = TerrainOrigin.z + ny * data.size.z;
 
+                // Noise frequency is defined in world metres (not a fraction of
+                // terrain size) so hill wavelength stays constant regardless of
+                // how big the terrain is — matches the ~465m/~146m wavelengths
+                // the old 1024m map had (2.2/1024 and 7/1024 cycles per metre).
                 float e = 0.30f
-                          + Fbm(nx * 2.2f + 11f, ny * 2.2f + 7f, 3) * 0.9f
-                          + Fbm(nx * 7f, ny * 7f, 3) * 0.18f
+                          + Fbm(wx * 0.002148f + 11f, wz * 0.002148f + 7f, 3) * 0.9f
+                          + Fbm(wx * 0.006836f, wz * 0.006836f, 3) * 0.18f
                           + (nx - 0.5f) * 0.12f;                    // rise to the east
 
-                // broad flattened corridor for the road (SW -> NE diagonal)
-                float corridor = Mathf.Abs(ny - (0.32f + nx * 0.30f));
-                e = Mathf.Lerp(0.29f, e, Mathf.Clamp01(corridor * 4.5f));
+                // broad flattened corridor for the road: real distance to the
+                // actual route polyline (world metres), not a normalized-space
+                // line guess — stays correct no matter how big the terrain is.
+                float corridorDist = DistanceToPolylineXZ(new Vector3(wx, 0, wz), RoadPoints);
+                e = Mathf.Lerp(0.29f, e, Mathf.Clamp01(corridorDist / 180f));
 
                 // raise a real ridge at the launch point
                 float dHill = new Vector2(wx - LaunchHillCentre.x, wz - LaunchHillCentre.z).magnitude;
@@ -1329,8 +1349,10 @@ namespace Ironfield.EditorTools
         static void PaintTerrain(Terrain terrain, List<Transform> waypoints)
         {
             var data = terrain.terrainData;
-            data.alphamapResolution = 512;
-            data.baseMapResolution = 1024;
+            // doubled alongside the terrain footprint to hold the same
+            // metres-per-sample texture detail as before.
+            data.alphamapResolution = 1024;
+            data.baseMapResolution = 2048;
 
             TerrainLayer L(string n, Color a, Color b, float grain, float tile)
             {
@@ -1418,7 +1440,7 @@ namespace Ironfield.EditorTools
                 noiseSpread = 0.3f, useInstancing = false,
             };
             data.detailPrototypes = new[] { dp };
-            data.SetDetailResolution(1024, 16);
+            data.SetDetailResolution(2048, 16);  // doubled with the terrain footprint
             int dw = data.detailWidth;
             var dm = new int[dw, dw];
             for (int y = 0; y < dw; y++)
@@ -1439,6 +1461,23 @@ namespace Ironfield.EditorTools
         }
 
         /// <summary>1 on the road centre, fading to 0 at (halfWidth+feather).</summary>
+        /// <summary>Min distance from a world XZ point to a polyline given as raw
+        /// points (used by BuildTerrain, before the waypoint Transforms exist —
+        /// see RoadMask for the Transform-based equivalent used everywhere else).</summary>
+        static float DistanceToPolylineXZ(Vector3 world, Vector3[] pts)
+        {
+            float best = float.MaxValue;
+            for (int i = 0; i < pts.Length - 1; i++)
+            {
+                Vector3 a = pts[i], b = pts[i + 1];
+                a.y = b.y = world.y = 0f;
+                Vector3 ab = b - a;
+                float t = Mathf.Clamp01(Vector3.Dot(world - a, ab) / Mathf.Max(0.01f, ab.sqrMagnitude));
+                best = Mathf.Min(best, Vector3.Distance(world, a + ab * t));
+            }
+            return best;
+        }
+
         static float RoadMask(Vector3 world, List<Transform> wps, float halfWidth, float feather)
         {
             float best = float.MaxValue;
@@ -1667,8 +1706,13 @@ namespace Ironfield.EditorTools
             Vector3 tPos = terrain.transform.position;
             Vector3 tSize = terrain.terrainData.size;
 
+            // Targets scaled ~2.4x alongside the terrain's 4x area increase (not
+            // the full 4x — the old map was already fairly dense near the road;
+            // scaling density with distance-from-road already thins it out
+            // further away, so a flat 4x would mostly pile more trees near the
+            // village without doing much for the empty far terrain).
             int treeN = 0, rockN = 0;
-            for (int i = 0; i < 12000 && (treeN < 1000 || rockN < 190); i++)
+            for (int i = 0; i < 30000 && (treeN < 2400 || rockN < 460); i++)
             {
                 float nx = (float)rng.NextDouble();
                 float nz = (float)rng.NextDouble();
@@ -1681,7 +1725,7 @@ namespace Ironfield.EditorTools
                 float woods = Fbm(world.x * 0.010f + 5f, world.z * 0.010f + 2f, 3);
                 world.y = SampleHeight(terrain, world);
 
-                if (steep > 24f && rockN < 260)
+                if (steep > 24f && rockN < 620)
                 {
                     var rk = (GameObject)PrefabUtility.InstantiatePrefab(rock);
                     rk.transform.SetParent(scatter);
@@ -1694,7 +1738,7 @@ namespace Ironfield.EditorTools
                     continue;
                 }
 
-                if (woods < 0.06f && treeN >= 400) continue;    // keep some open fields
+                if (woods < 0.06f && treeN >= 960) continue;    // keep some open fields
                 GameObject src;
                 double roll = rng.NextDouble();
                 if (woods > 0.16f) src = roll < 0.35 ? conif : broad;

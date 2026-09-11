@@ -159,12 +159,15 @@ ffmpeg -framerate 15 \
 ## Known prototype limitations
 
 IMGUI throughout (menus included — see ROADMAP.md P2 for the uGUI/TMP pass),
-Built-in pipeline (URP conversion pending), single drone type, 3-mission
-campaign (no per-mission terrain variation yet — same battlefield, different
+Built-in pipeline (URP conversion pending), 3-mission campaign (no
+per-mission terrain variation yet — same 2048×2048m battlefield, different
 convoy/enemy composition). Explosion/hit/UI-click sounds are real CC0
 recordings now (Kenney, see CREDITS.md); the drone engine loop is still
 procedurally synthesised (a real recorded loop needs an engineered seam —
 lower priority than the one-shot SFX that just needed a good single clip).
+Flying far from the road triggers a "LEAVING COMBAT AREA" warning and a
+soft push back toward the centre; a hard boundary near the terrain edge
+can't be crossed at all.
 
 ## License
 

@@ -146,6 +146,14 @@ namespace Ironfield.Mission
             {
                 GUI.Label(new Rect(24, h - 66, 320, 22), $"{drone.Speed * 3.6f:0} km/h", _label);
                 GUI.Label(new Rect(24, h - 44, 320, 22), $"ALT {drone.transform.position.y:0} m", _small);
+
+                if (drone.IsNearBoundary)
+                {
+                    var bw = new GUIStyle(_center) { fontSize = 20, fontStyle = FontStyle.Bold };
+                    float pulse = 0.65f + 0.35f * Mathf.Sin(Time.time * 6f);
+                    bw.normal.textColor = new Color(1f, 0.55f, 0.2f, pulse);
+                    GUI.Label(new Rect(0, h * 0.10f, w, 30), "⚠ 返回战斗区域 · LEAVING COMBAT AREA", bw);
+                }
             }
 
             // --- control legend (bottom-right; fades out, hold H to re-show) --

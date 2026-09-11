@@ -41,6 +41,16 @@ namespace Ironfield.Drone
         public bool useDebugInput;
         public Vector4 debugInput;
 
+        [Header("Map boundary (set by MissionManager from the terrain's actual bounds)")]
+        [Tooltip("XZ centre of the flyable area.")]
+        public Vector2 boundaryCentre;
+        [Tooltip("Distance from centre where the HUD warns and a gentle inward push starts.")]
+        public float boundarySoftRadius = 100000f;
+        [Tooltip("Distance from centre that is a hard wall the drone can't cross.")]
+        public float boundaryHardRadius = 100000f;
+        /// <summary>True once past boundarySoftRadius — HudController shows a warning off this.</summary>
+        public bool IsNearBoundary { get; private set; }
+
         /// <summary>
         /// Auto-attack: when set, overrides manual aim + throttle for this frame —
         /// the flight model steers itself onto this world point at full send
@@ -157,10 +167,41 @@ namespace Ironfield.Drone
                     want.y = Mathf.Lerp(0.8f, want.y, Mathf.Clamp01(clearance / 5f));
             }
 
+            // --- map boundary: fly far enough from the launch/combat area and
+            // an inward push kicks in (proportional to how far past the soft
+            // radius), well before the hard radius that a drone can never
+            // actually cross. HudController reads IsNearBoundary for the
+            // warning text. Centre/radii default to "effectively off" so this
+            // is inert unless MissionManager configures it from the real
+            // terrain bounds on spawn.
+            Vector2 flatPos = new(transform.position.x, transform.position.z);
+            Vector2 fromCentre = flatPos - boundaryCentre;
+            float distFromCentre = fromCentre.magnitude;
+            IsNearBoundary = distFromCentre > boundarySoftRadius;
+            if (IsNearBoundary && distFromCentre > 0.01f)
+            {
+                Vector2 inward = -fromCentre / distFromCentre;
+                float overshoot = Mathf.Clamp01(Mathf.InverseLerp(boundarySoftRadius, boundaryHardRadius, distFromCentre));
+                want += new Vector3(inward.x, 0f, inward.y) * (overshoot * tuning.boostMaxSpeed * 1.3f);
+            }
+
             Vector3 v = _rb.linearVelocity;
             float responsiveness = 1f - Mathf.Exp(-tuning.linearDrag * 3.2f * dt);
             v = Vector3.Lerp(v, want, responsiveness);
             if (v.magnitude > tuning.boostMaxSpeed) v = v.normalized * tuning.boostMaxSpeed;
+
+            // hard wall: never actually let the drone cross it, no matter how
+            // hard boost/steering fight the push above.
+            if (distFromCentre > boundaryHardRadius && distFromCentre > 0.01f)
+            {
+                Vector2 outward = fromCentre / distFromCentre;
+                Vector2 clampedFlat = boundaryCentre + outward * boundaryHardRadius;
+                _rb.position = new Vector3(clampedFlat.x, _rb.position.y, clampedFlat.y);
+                Vector3 outward3 = new(outward.x, 0f, outward.y);
+                float outComp = Vector3.Dot(v, outward3);
+                if (outComp > 0f) v -= outward3 * outComp;
+            }
+
             _rb.linearVelocity = v;
             _speed = new Vector2(v.x, v.z).magnitude;
 

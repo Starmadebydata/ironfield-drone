@@ -134,6 +134,7 @@ namespace Ironfield.Mission
             ActiveDrone = Instantiate(chosenPrefab, pos, rot);
             int droneLayer = GameLayers.Drone;
             if (droneLayer >= 0) SetLayer(ActiveDrone.gameObject, droneLayer);
+            ConfigureBoundary(ActiveDrone);
 
             if (cameraRig) cameraRig.Bind(ActiveDrone.transform);
             if (targeting) targeting.viewCamera = cameraRig ? cameraRig.GetComponent<Camera>() : Camera.main;
@@ -159,6 +160,25 @@ namespace Ironfield.Mission
                     OnDroneSpent(where);
                 };
             }
+        }
+
+        /// <summary>Sets the spawned drone's boundary centre/radii from the actual
+        /// active terrain bounds, so a player can't just fly straight off the map
+        /// (see DroneController.IsNearBoundary / the FixedUpdate push-back). No-op
+        /// (drone keeps its huge inert default radii) if there's no active terrain,
+        /// e.g. an isolated test scene.</summary>
+        static void ConfigureBoundary(DroneController drone)
+        {
+            var terrain = Terrain.activeTerrain;
+            if (terrain == null) return;
+            var td = terrain.terrainData;
+            Vector3 tPos = terrain.transform.position;
+            drone.boundaryCentre = new Vector2(tPos.x + td.size.x * 0.5f, tPos.z + td.size.z * 0.5f);
+            float half = Mathf.Min(td.size.x, td.size.z) * 0.5f;
+            // warning kicks in well before the edge; hard wall sits inside it so
+            // there's always room to feel the push-back before actually stopping.
+            drone.boundarySoftRadius = half - 140f;
+            drone.boundaryHardRadius = half - 40f;
         }
 
         /// <summary>Nearest still-alive vehicle to a world point, or null.</summary>
