@@ -12,7 +12,21 @@ namespace Ironfield.UI
 
         GUIStyle _title, _subtitle, _btn, _footer, _missionName, _missionSub, _sectionTitle;
 
-        void Awake() => GameSettings.Load();
+        void Awake()
+        {
+            GameSettings.Load();
+            // -perftest jumps straight into a mission so PerfHarness can measure
+            // real gameplay instead of the menu.
+            var args = System.Environment.GetCommandLineArgs();
+            if (System.Array.IndexOf(args, "-perftest") >= 0)
+                SceneFlow.LoadMissionByName(PerfTestScene(args));
+        }
+
+        static string PerfTestScene(string[] args)
+        {
+            int i = System.Array.IndexOf(args, "-perftest-scene");
+            return i >= 0 && i + 1 < args.Length ? args[i + 1] : "Mission03";
+        }
 
         void EnsureStyles()
         {

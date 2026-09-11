@@ -90,6 +90,28 @@ Each `tools/blender/*.py` fully rebuilds one FBX under `Assets/Art/`. Hand
 detailing belongs in a saved `.blend` or on the FBX, not in the scripts. After
 regenerating, let Unity reimport; prefabs keep their component wiring.
 
+## Real-machine perf check
+
+`Assets/Scripts/Core/PerfHarness.cs` is a no-op in normal play; launched with
+`-perftest` it jumps straight into `Mission03` (the heaviest scene), forces
+20 s of full-throttle flight, and writes avg/1%-low FPS to
+`~/Library/Application Support/NorthfallGames/Ironfield/perf_log.txt`
+(Windows: `%APPDATA%\..\LocalLow\NorthfallGames\Ironfield\`) before quitting.
+
+```bash
+# 1. build a Development Player (this machine's platform only)
+Unity -batchmode -quit -projectPath . \
+  -executeMethod Ironfield.EditorTools.IronfieldSetup.BuildDevPlayer
+
+# 2. run it headful for the measurement window, then read the log
+Builds/DevPerf/Ironfield.app/Contents/MacOS/Ironfield -perftest
+cat "$HOME/Library/Application Support/NorthfallGames/Ironfield/perf_log.txt"
+```
+
+Also on the **Ironfield** editor menu ("9. Build Dev Player (perf)"). This
+measures the built Player, not the editor — editor overhead makes in-editor
+frame timing meaningless for real perf numbers.
+
 ## Known prototype limitations
 
 IMGUI throughout (menus included — see ROADMAP.md P2 for the uGUI/TMP pass),

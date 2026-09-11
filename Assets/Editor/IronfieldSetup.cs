@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Ironfield.Combat;
 using Ironfield.Core;
 using Ironfield.Drone;
@@ -9,6 +10,7 @@ using Ironfield.Targeting;
 using Ironfield.UI;
 using Ironfield.Vehicles;
 using UnityEditor;
+using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -211,6 +213,31 @@ namespace Ironfield.EditorTools
         /// run eyeball model orientation / scale without opening the editor.
         ///   Unity -batchmode -quit -executeMethod Ironfield.EditorTools.IronfieldSetup.Screenshot
         /// </summary>
+        /// <summary>
+        /// Builds a Development Player (this machine's own platform is the only
+        /// one supported without extra platform modules) so real perf numbers
+        /// can be measured outside editor overhead — see PerfHarness.cs and
+        /// ROADMAP.md P2 item 2. Launch the result with -perftest.
+        ///   Unity -batchmode -quit -executeMethod Ironfield.EditorTools.IronfieldSetup.BuildDevPlayer
+        /// </summary>
+        [MenuItem("Ironfield/9. Build Dev Player (perf)")]
+        public static void BuildDevPlayer()
+        {
+            string outDir = "Builds/DevPerf";
+            Directory.CreateDirectory(outDir);
+            var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = scenes,
+                locationPathName = outDir + "/Ironfield.app",
+                target = BuildTarget.StandaloneOSX,
+                options = BuildOptions.Development,
+            });
+            Debug.Log($"[Ironfield] Dev player build: {report.summary.result}, "
+                    + $"{report.summary.totalErrors} errors, {report.summary.totalWarnings} warnings, "
+                    + $"{report.summary.totalSize / 1024 / 1024} MB -> {outDir}/Ironfield.app");
+        }
+
         public static void Screenshot()
         {
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
@@ -945,6 +972,7 @@ namespace Ironfield.EditorTools
             pause.mission = mgr;
             var tip = mgrGo.AddComponent<FirstRunTip>();
             tip.mission = mgr;
+            mgrGo.AddComponent<PerfHarness>().mission = mgr; // inert unless launched with -perftest
 
             rig.Bind(null);
 
