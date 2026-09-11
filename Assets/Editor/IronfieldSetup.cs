@@ -68,6 +68,24 @@ namespace Ironfield.EditorTools
             public float convoySpeedMul;
             /// <summary>How many static flak emplacements to place along the road.</summary>
             public int flakCount;
+            /// <summary>Phase offset fed into the terrain/vegetation noise so each
+            /// mission's hill layout, texture blotches and forest clusters are
+            /// genuinely different, not the same battlefield with a new convoy.
+            /// (0,0) for Mission01 keeps its exact original look.</summary>
+            public Vector2 terrainSeedOffset;
+            /// <summary>Scales tree/rock scatter counts — later missions read
+            /// barer/more war-torn instead of every map being equally lush.</summary>
+            public float vegetationDensityMul;
+            /// <summary>Multiplies fog/ambient colour for a per-mission mood shift
+            /// (haze, ash-grey, etc). Color.white = no change (Mission01).</summary>
+            public Color moodTint;
+            /// <summary>World XZ of optional side-objective RadioOutpost targets,
+            /// scattered off the convoy route — Y is sampled from the terrain at
+            /// build time. Not required to win; see Vehicle.optional.</summary>
+            public Vector2[] bonusTargets;
+            /// <summary>0 = lush (Mission01), higher = drier/more scorched-looking
+            /// ground texture (more dry/burn blend, less grass) for later missions.</summary>
+            public float dryness;
         }
 
         static readonly MissionBuildConfig[] Missions =
@@ -81,26 +99,41 @@ namespace Ironfield.EditorTools
                     VehicleClass.Tank, VehicleClass.IFV, VehicleClass.Truck,
                 },
                 highValueTarget = false, convoySpeedMul = 1.0f, flakCount = 0,
+                terrainSeedOffset = Vector2.zero,       // keeps the original look exactly
+                vegetationDensityMul = 1.0f, moodTint = Color.white, dryness = 0f,
+                bonusTargets = new[] { new Vector2(-550, 380), new Vector2(500, -450) },
             },
             new()
             {
                 scenePath = ScenesDir + "/Mission02.unity", missionId = "m02", droneStock = 5,
                 convoy = new[]
                 {
-                    VehicleClass.Tank, VehicleClass.Tank, VehicleClass.IFV, VehicleClass.IFV,
+                    // one IFV swapped for a SPAAG vs. Mission01's composition —
+                    // convoy size stays 7, just a new threat type mixed in.
+                    VehicleClass.Tank, VehicleClass.Tank, VehicleClass.IFV, VehicleClass.SPAAG,
                     VehicleClass.Truck, VehicleClass.Truck, VehicleClass.Truck,
                 },
                 highValueTarget = false, convoySpeedMul = 1.15f, flakCount = 1,
+                terrainSeedOffset = new Vector2(311f, 133f),   // different hill/forest layout
+                vegetationDensityMul = 0.85f, moodTint = new Color(1.06f, 0.98f, 0.85f),  // warmer, drier haze
+                dryness = 0.35f,
+                bonusTargets = new[] { new Vector2(-680, -250), new Vector2(620, 500), new Vector2(-300, 700) },
             },
             new()
             {
                 scenePath = ScenesDir + "/Mission03.unity", missionId = "m03", droneStock = 6,
                 convoy = new[]
                 {
-                    VehicleClass.Tank, VehicleClass.Tank, VehicleClass.IFV, VehicleClass.IFV,
+                    // two IFVs swapped for SPAAGs vs. Mission01's composition —
+                    // convoy size stays 8, escalates to the most SPAAG presence.
+                    VehicleClass.Tank, VehicleClass.Tank, VehicleClass.SPAAG, VehicleClass.SPAAG,
                     VehicleClass.IFV, VehicleClass.Truck, VehicleClass.Truck, VehicleClass.Truck,
                 },
                 highValueTarget = true, convoySpeedMul = 1.3f, flakCount = 2,
+                terrainSeedOffset = new Vector2(777f, 401f),   // yet another layout
+                vegetationDensityMul = 0.68f, moodTint = new Color(0.88f, 0.86f, 0.86f),  // ash-grey, scorched
+                dryness = 0.6f,
+                bonusTargets = new[] { new Vector2(750, -200), new Vector2(-700, 450), new Vector2(300, -700) },
             },
         };
 
@@ -189,6 +222,9 @@ namespace Ironfield.EditorTools
             BuildVehiclePrefab("Tank", ArtTank, VehicleClass.Tank, 900f, 60f, 3.6f, 7.6f, 2.7f);
             BuildVehiclePrefab("IFV", ArtIFV, VehicleClass.IFV, 420f, 25f, 3.2f, 6.2f, 2.9f);
             BuildVehiclePrefab("Truck", ArtTruck, VehicleClass.Truck, 160f, 0f, 2.7f, 8.2f, 3.3f);
+            // lightly armoured on purpose — dangerous to linger near, easy to kill first.
+            BuildVehiclePrefab("SPAAG", ArtIFV, VehicleClass.SPAAG, 320f, 15f, 3.2f, 6.2f, 2.9f);
+            BuildRadioOutpostPrefab();
 
             // Asset ops above can reimport the prefabs and invalidate in-memory
             // references, so reload everything fresh from disk before wiring the scene.
@@ -322,6 +358,21 @@ namespace Ironfield.EditorTools
                 Shot(cam, eye3, d.transform.position + d.transform.forward * 3f, "Ironfield_smoke_drone_heavy.png");
                 Object.DestroyImmediate(d);
             }
+
+            // bonus target + landmark: eyeball the new off-route content
+            var bonusParent = GameObject.Find("BonusTargets");
+            if (bonusParent != null && bonusParent.transform.childCount > 0)
+            {
+                var outpost = bonusParent.transform.GetChild(0);
+                Vector3 oeye = outpost.position + new Vector3(-9, 4, -9);
+                Shot(cam, oeye, outpost.position + Vector3.up * 2.5f, "Ironfield_smoke_outpost.png");
+            }
+            var tower = GameObject.Find("Watchtower");
+            if (tower != null)
+            {
+                Vector3 teye = tower.transform.position + new Vector3(-16, 7, -16);
+                Shot(cam, teye, tower.transform.position + Vector3.up * 6f, "Ironfield_smoke_tower.png");
+            }
             _ = scene;
 
             // Mission03: eyeball the flak emplacement + high-value beacon
@@ -339,6 +390,13 @@ namespace Ironfield.EditorTools
             {
                 Vector3 heye = hqFlag.transform.position + new Vector3(-10, 4, -10);
                 Shot(cam3, heye, hqFlag.transform.position, "Ironfield_smoke_hq.png");
+            }
+            var spaag = GameObject.Find("SPAAG");
+            if (cam3 != null && spaag != null)
+            {
+                Vector3 seye = spaag.transform.position + spaag.transform.right * 8f
+                               + Vector3.up * 3.5f - spaag.transform.forward * 3f;
+                Shot(cam3, seye, spaag.transform.position + Vector3.up * 1.5f, "Ironfield_smoke_spaag.png");
             }
             _ = m3;
         }
@@ -772,17 +830,23 @@ namespace Ironfield.EditorTools
             SetLayerRecursive(root, GameLayers.Vehicle);
 
             // Prefer the CC-BY external model; the yaw values line each model's
-            // nose up with +Z (found by eye from the smoke shot).
+            // nose up with +Z (found by eye from the smoke shot). SPAAG reuses
+            // the IFV chassis (no separate CC0 model sourced for it) — the twin
+            // AA barrels + radar dish bolted on below are what actually make it
+            // read as a different vehicle, not the hull.
             (string ext, float yaw) = cls switch
             {
                 VehicleClass.Tank  => (ExtDir + "tank.fbx", 0f),
                 VehicleClass.IFV   => (ExtDir + "ifv.fbx", 0f),
+                VehicleClass.SPAAG => (ExtDir + "ifv.fbx", 0f),
                 _                  => (ExtDir + "truck.fbx", 0f),
             };
 
-            // the tank model ships toy-coloured; militarise it. IFV / truck
-            // palettes are already olive so leave them faithful.
-            bool milit = cls == VehicleClass.Tank;
+            // the tank model ships toy-coloured; militarise it. SPAAG gets the
+            // same treatment so its shared IFV hull reads a shade darker/
+            // duller than an actual IFV at a glance. IFV / truck palettes are
+            // already olive so leave those faithful.
+            bool milit = cls == VehicleClass.Tank || cls == VehicleClass.SPAAG;
             GameObject intact = LoadExternalModel(ext, length, FitAxis.XZ, yaw, milit);
             GameObject wreck = null;
             if (intact != null)
@@ -811,7 +875,13 @@ namespace Ironfield.EditorTools
             col.center = new Vector3(0f, height * 0.5f, 0f);
 
             var rb = root.AddComponent<Rigidbody>();
-            rb.mass = cls == VehicleClass.Tank ? 45000f : cls == VehicleClass.IFV ? 18000f : 9000f;
+            rb.mass = cls switch
+            {
+                VehicleClass.Tank => 45000f,
+                VehicleClass.IFV => 18000f,
+                VehicleClass.SPAAG => 16000f,
+                _ => 9000f,
+            };
             rb.isKinematic = true;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
 
@@ -824,6 +894,7 @@ namespace Ironfield.EditorTools
             {
                 VehicleClass.Tank => "Main battle tank",
                 VehicleClass.IFV => "Infantry fighting vehicle",
+                VehicleClass.SPAAG => "Self-propelled AA gun",
                 _ => "Supply truck",
             };
             var aim = new GameObject("AimPoint");
@@ -845,12 +916,16 @@ namespace Ironfield.EditorTools
             {
                 var turret = root.AddComponent<VehicleTurret>();
                 turret.enabled = true;                       // convoy shoots back
-                turret.range = cls == VehicleClass.Tank ? 190f : 150f;
-                turret.fireInterval = cls == VehicleClass.Tank ? 0.16f : 0.11f;
-                turret.burst = cls == VehicleClass.Tank ? 3 : 5;
-                turret.burstPause = cls == VehicleClass.Tank ? 1.7f : 1.3f;
-                turret.spreadDeg = cls == VehicleClass.Tank ? 3.2f : 2.4f;
-                turret.damagePerHit = cls == VehicleClass.Tank ? 7f : 4.5f;
+                // SPAAG: longer range, much faster/larger bursts, wider spread,
+                // lower per-hit damage — a volume-of-fire threat you can't just
+                // tank hits from at range the way you can a tank's occasional
+                // heavy shot. Meant to punish loitering, not one-shot the drone.
+                turret.range = cls switch { VehicleClass.Tank => 190f, VehicleClass.SPAAG => 230f, _ => 150f };
+                turret.fireInterval = cls switch { VehicleClass.Tank => 0.16f, VehicleClass.SPAAG => 0.07f, _ => 0.11f };
+                turret.burst = cls switch { VehicleClass.Tank => 3, VehicleClass.SPAAG => 8, _ => 5 };
+                turret.burstPause = cls switch { VehicleClass.Tank => 1.7f, VehicleClass.SPAAG => 1.0f, _ => 1.3f };
+                turret.spreadDeg = cls switch { VehicleClass.Tank => 3.2f, VehicleClass.SPAAG => 3.6f, _ => 2.4f };
+                turret.damagePerHit = cls switch { VehicleClass.Tank => 7f, VehicleClass.SPAAG => 3.5f, _ => 4.5f };
                 var muz = new GameObject("Muzzle");
                 muz.transform.SetParent(root.transform, false);
                 muz.transform.localPosition = new Vector3(0f, height * 0.7f, length * 0.25f);
@@ -858,9 +933,70 @@ namespace Ironfield.EditorTools
                 turret.tracerPrefab = MakeTracerPrefab();
             }
 
+            // SPAAG-only: twin AA barrels + radar dish bolted onto the IFV
+            // hull's roof, so it reads as a distinct threat silhouette from
+            // across the map, not just a re-tinted IFV.
+            if (cls == VehicleClass.SPAAG)
+                BuildSpaagTopside(root.transform, height, length);
+
             var prefab = SavePrefab(root, PrefabDir + "/" + name + ".prefab");
             Object.DestroyImmediate(root);
             return prefab.GetComponent<Vehicle>();
+        }
+
+        /// <summary>Twin AA barrels on a yoke + a tilted radar dish, mounted on
+        /// the hull roof. Purely cosmetic (the turret's actual aim/fire math is
+        /// muzzle-position based, same as every other vehicle) — this only has
+        /// to read as "anti-air", not track anything itself.</summary>
+        static void BuildSpaagTopside(Transform parent, float hullHeight, float hullLength)
+        {
+            var gunmetal = MakeStandard("spaag_gunmetal", new Color(0.14f, 0.15f, 0.14f), 0.4f, 0.55f);
+            var warn = MakeStandard("spaag_warn", new Color(0.55f, 0.42f, 0.08f), 0.3f, 0.1f);
+
+            var mount = new GameObject("SpaagMount").transform;
+            mount.SetParent(parent, false);
+            mount.localPosition = new Vector3(0f, hullHeight * 0.92f, -hullLength * 0.05f);
+
+            var yoke = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            yoke.name = "Yoke";
+            yoke.transform.SetParent(mount, false);
+            yoke.transform.localScale = new Vector3(1.5f, 0.22f, 0.4f);
+            yoke.transform.localPosition = Vector3.up * 0.5f;
+            Object.DestroyImmediate(yoke.GetComponent<Collider>());
+            yoke.GetComponent<MeshRenderer>().sharedMaterial = warn;
+
+            foreach (float side in new[] { -1f, 1f })
+            {
+                var barrel = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                barrel.name = "Barrel";
+                barrel.transform.SetParent(mount, false);
+                barrel.transform.localRotation = Quaternion.Euler(78f, 0f, 0f);
+                barrel.transform.localScale = new Vector3(0.09f, 1.1f, 0.09f);
+                barrel.transform.localPosition = new Vector3(side * 0.55f, 0.75f, 0.7f);
+                Object.DestroyImmediate(barrel.GetComponent<Collider>());
+                barrel.GetComponent<MeshRenderer>().sharedMaterial = gunmetal;
+            }
+
+            // radar dish: tilted disc on a short mast toward the rear, so the
+            // silhouette reads "AA + sensor" from any angle, not just front-on.
+            var mast = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            mast.name = "RadarMast";
+            mast.transform.SetParent(mount, false);
+            mast.transform.localScale = new Vector3(0.07f, 0.5f, 0.07f);
+            mast.transform.localPosition = new Vector3(0f, 0.5f, -0.9f);
+            Object.DestroyImmediate(mast.GetComponent<Collider>());
+            mast.GetComponent<MeshRenderer>().sharedMaterial = gunmetal;
+
+            var dish = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            dish.name = "RadarDish";
+            dish.transform.SetParent(mount, false);
+            dish.transform.localRotation = Quaternion.Euler(60f, 30f, 0f);
+            dish.transform.localScale = new Vector3(0.6f, 0.04f, 0.6f);
+            dish.transform.localPosition = new Vector3(0f, 1.05f, -0.9f);
+            Object.DestroyImmediate(dish.GetComponent<Collider>());
+            dish.GetComponent<MeshRenderer>().sharedMaterial = warn;
+
+            SetLayerRecursive(mount.gameObject, GameLayers.Vehicle);
         }
 
         // ----------------------------------------------------------------- //
@@ -908,10 +1044,22 @@ namespace Ironfield.EditorTools
             QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
             QualitySettings.antiAliasing = 4;
             QualitySettings.pixelLightCount = 4;
+
+            // --- per-mission mood: same lighting rig, different atmosphere so
+            // 3 missions don't look like the exact same afternoon (white =
+            // no-op, keeps Mission01 pixel-identical to before this existed).
+            Color Tint(Color c) => new(c.r * cfg.moodTint.r, c.g * cfg.moodTint.g, c.b * cfg.moodTint.b, c.a);
+            sun.color = Tint(sun.color);
+            fill.color = Tint(fill.color);
+            skyCol = Tint(skyCol);
+            RenderSettings.ambientSkyColor = Tint(RenderSettings.ambientSkyColor);
+            RenderSettings.ambientEquatorColor = Tint(RenderSettings.ambientEquatorColor);
+            RenderSettings.ambientGroundColor = Tint(RenderSettings.ambientGroundColor);
+            RenderSettings.fogColor = Tint(RenderSettings.fogColor);
             _skyColor = skyCol;
 
             // --- terrain ---------------------------------------------
-            var terrain = BuildTerrain();
+            var terrain = BuildTerrain(cfg);
 
             // --- road + convoy path --------------------------------
             var pathParent = new GameObject("ConvoyPath").transform;
@@ -927,9 +1075,9 @@ namespace Ironfield.EditorTools
             }
 
             // paint ground + road + scatter vegetation now that the path is known
-            PaintTerrain(terrain, waypoints);
+            PaintTerrain(terrain, waypoints, cfg);
             BuildRoadMesh(terrain, waypoints);
-            ScatterVegetation(terrain, waypoints);
+            ScatterVegetation(terrain, waypoints, cfg);
 
             // --- launch ridge --------------------------------------
             var launch = new GameObject("LaunchPoint");
@@ -967,11 +1115,14 @@ namespace Ironfield.EditorTools
             var tankPf = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Tank.prefab");
             var ifvPf = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/IFV.prefab");
             var truckPf = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Truck.prefab");
+            var spaagPf = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/SPAAG.prefab");
+            var outpostPf = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/RadioOutpost.prefab");
 
             GameObject PrefabFor(VehicleClass c) => c switch
             {
                 VehicleClass.Tank => tankPf,
                 VehicleClass.IFV => ifvPf,
+                VehicleClass.SPAAG => spaagPf,
                 _ => truckPf,
             };
 
@@ -1013,6 +1164,29 @@ namespace Ironfield.EditorTools
                 Vector3 pos = along + side * (f % 2 == 0 ? 34f : -34f);
                 pos.y = SampleHeight(terrain, pos);
                 BuildFlakPosition(pos, convoyParent.position - pos);
+            }
+
+            // --- optional side objectives, scattered off the road ----
+            if (cfg.bonusTargets != null && outpostPf != null)
+            {
+                var bonusParent = new GameObject("BonusTargets").transform;
+                foreach (var xz in cfg.bonusTargets)
+                {
+                    Vector3 pos = new Vector3(xz.x, 0f, xz.y);
+                    pos.y = SampleHeight(terrain, pos);
+                    var go = (GameObject)PrefabUtility.InstantiatePrefab(outpostPf);
+                    go.transform.SetParent(bonusParent);
+                    go.transform.position = pos;
+                    go.transform.rotation = Quaternion.Euler(0f, (pos.x + pos.z) % 360f, 0f);
+                }
+            }
+
+            // --- landmarks, purely for navigation/visual interest -----
+            foreach (var xz in LandmarkPositions)
+            {
+                Vector3 pos = new Vector3(xz.x, 0f, xz.y);
+                pos.y = SampleHeight(terrain, pos);
+                BuildWatchtower(pos);
             }
 
             // --- village ruins + battlefield dressing ----------
@@ -1159,6 +1333,157 @@ namespace Ironfield.EditorTools
             SetLayerRecursive(root, GameLayers.Environment);
         }
 
+        /// <summary>Optional side objective: a stationary comms/radar relay mast,
+        /// scattered off the convoy route (see MissionBuildConfig.bonusTargets).
+        /// Destructible for bonus score via Vehicle.optional=true, but — unlike
+        /// FlakPosition — unarmed and NOT required to win the mission; it exists
+        /// to reward flying out and exploring the now much bigger map instead of
+        /// just following the road. Saved as a reusable prefab like the vehicles,
+        /// not built inline, since it's placed several times per mission.</summary>
+        static Vehicle BuildRadioOutpostPrefab()
+        {
+            var fireSmoke = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/FireSmoke.prefab");
+            var root = new GameObject("RadioOutpost");
+            root.tag = GameTags.Vehicle;
+            SetLayerRecursive(root, GameLayers.Vehicle);
+
+            var baseMat = MakeStandard("outpost_base", new Color(0.22f, 0.21f, 0.17f), 0.15f, 0.1f);
+            var crateMat = MakeStandard("outpost_crate", new Color(0.30f, 0.27f, 0.18f), 0.2f, 0.05f);
+            var dishMat = MakeStandard("outpost_dish", new Color(0.58f, 0.56f, 0.50f), 0.3f, 0.2f);
+
+            var visual = new GameObject("Model").transform;
+            visual.SetParent(root.transform, false);
+
+            var crate = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            crate.name = "Crate";
+            crate.transform.SetParent(visual, false);
+            crate.transform.localScale = new Vector3(1.6f, 1.3f, 1.6f);
+            crate.transform.localPosition = Vector3.up * 0.65f;
+            Object.DestroyImmediate(crate.GetComponent<Collider>());
+            crate.GetComponent<MeshRenderer>().sharedMaterial = crateMat;
+
+            var mast = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            mast.name = "Mast";
+            mast.transform.SetParent(visual, false);
+            mast.transform.localScale = new Vector3(0.12f, 2.4f, 0.12f);
+            mast.transform.localPosition = Vector3.up * (1.3f + 2.4f);
+            Object.DestroyImmediate(mast.GetComponent<Collider>());
+            mast.GetComponent<MeshRenderer>().sharedMaterial = baseMat;
+
+            var dish = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            dish.name = "Dish";
+            dish.transform.SetParent(visual, false);
+            dish.transform.localRotation = Quaternion.Euler(55f, 40f, 0f);
+            dish.transform.localScale = new Vector3(1.1f, 0.06f, 1.1f);
+            dish.transform.localPosition = Vector3.up * (1.3f + 4.6f);
+            Object.DestroyImmediate(dish.GetComponent<Collider>());
+            dish.GetComponent<MeshRenderer>().sharedMaterial = dishMat;
+
+            // small sandbag ring, same palette as BuildFlakPosition so it reads
+            // as "manned position" like the flak emplacement does.
+            var sand = MakeUnlit(new Color(0.42f, 0.37f, 0.24f), "sandbag_outpost");
+            for (int i = 0; i < 4; i++)
+            {
+                float a = i / 4f * Mathf.PI * 2f;
+                var bag = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                bag.transform.SetParent(visual, false);
+                bag.transform.localPosition = new Vector3(Mathf.Sin(a) * 1.7f, 0.35f, Mathf.Cos(a) * 1.7f);
+                bag.transform.localScale = new Vector3(1f, 0.6f, 0.65f);
+                bag.transform.localRotation = Quaternion.Euler(0, a * Mathf.Rad2Deg, 0);
+                Object.DestroyImmediate(bag.GetComponent<Collider>());
+                bag.GetComponent<MeshRenderer>().sharedMaterial = sand;
+            }
+
+            var col = root.AddComponent<BoxCollider>();
+            col.size = new Vector3(2.4f, 6.4f, 2.4f);
+            col.center = new Vector3(0f, 3.2f, 0f);
+
+            var health = root.AddComponent<HealthComponent>();
+            health.maxHealth = 45f; health.armor = 0f; health.explosiveArmorPierce = 1f;
+
+            var v = root.AddComponent<Vehicle>();
+            v.vehicleClass = VehicleClass.Truck;   // nearest bucket; unused for behaviour here
+            v.displayName = "Recon relay outpost";
+            v.optional = true;
+            var aim = new GameObject("AimPoint");
+            aim.transform.SetParent(root.transform, false);
+            aim.transform.localPosition = Vector3.up * 3f;
+            v.aimPoint = aim.transform;
+
+            // stationary and unarmed on purpose — no VehicleConvoyAI, no
+            // VehicleTurret. It's a soft, rewarding detour, not a threat.
+            var wk = root.AddComponent<Wreck>();
+            wk.intactVisual = visual.gameObject;
+            wk.fireSmokePrefab = fireSmoke;
+            wk.fireLocalOffset = Vector3.up * 2f;
+            wk.destroyedSfx = ExplosionClip();
+            wk.charInPlace = true;
+
+            var prefab = SavePrefab(root, PrefabDir + "/RadioOutpost.prefab");
+            Object.DestroyImmediate(root);
+            return prefab.GetComponent<Vehicle>();
+        }
+
+        /// <summary>Pure environment landmark: a wooden lookout tower with no
+        /// gameplay behaviour at all (no Vehicle/HealthComponent) — just a tall,
+        /// distinctive silhouette scattered far from the road so the bigger map
+        /// has something to orient toward from a distance, not empty terrain.
+        /// Built inline (not saved as a prefab) since there are only two of
+        /// them, same as BuildFlakPosition.</summary>
+        static void BuildWatchtower(Vector3 pos)
+        {
+            var root = new GameObject("Watchtower");
+            root.transform.position = pos;
+            SetLayerRecursive(root, GameLayers.Environment);
+
+            var wood = MakeStandard("tower_wood", new Color(0.28f, 0.2f, 0.13f), 0.05f, 0f);
+            var metal = MakeStandard("tower_metal", new Color(0.14f, 0.14f, 0.15f), 0.3f, 0.4f);
+
+            const float legSpread = 1.7f, towerHeight = 9f;
+            foreach (var off in new[]
+                     {
+                         new Vector3(-legSpread, 0, -legSpread), new Vector3(legSpread, 0, -legSpread),
+                         new Vector3(-legSpread, 0, legSpread), new Vector3(legSpread, 0, legSpread),
+                     })
+            {
+                var leg = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                leg.name = "Leg";
+                leg.transform.SetParent(root.transform, false);
+                leg.transform.localPosition = off + Vector3.up * towerHeight * 0.5f;
+                leg.transform.localScale = new Vector3(0.16f, towerHeight * 0.5f, 0.16f);
+                Object.DestroyImmediate(leg.GetComponent<Collider>());
+                leg.GetComponent<MeshRenderer>().sharedMaterial = wood;
+            }
+
+            var platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            platform.name = "Platform";
+            platform.transform.SetParent(root.transform, false);
+            platform.transform.localPosition = Vector3.up * towerHeight;
+            platform.transform.localScale = new Vector3(legSpread * 2.5f, 0.3f, legSpread * 2.5f);
+            Object.DestroyImmediate(platform.GetComponent<Collider>());
+            platform.GetComponent<MeshRenderer>().sharedMaterial = wood;
+
+            var rail = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            rail.name = "Rail";
+            rail.transform.SetParent(root.transform, false);
+            rail.transform.localPosition = Vector3.up * (towerHeight + 0.7f);
+            rail.transform.localScale = new Vector3(legSpread * 2.5f, 1f, 0.08f);
+            Object.DestroyImmediate(rail.GetComponent<Collider>());
+            rail.GetComponent<MeshRenderer>().sharedMaterial = metal;
+
+            var pole = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            pole.name = "Antenna";
+            pole.transform.SetParent(root.transform, false);
+            pole.transform.localScale = new Vector3(0.05f, 1.5f, 0.05f);
+            pole.transform.localPosition = Vector3.up * (towerHeight + 1.5f);
+            Object.DestroyImmediate(pole.GetComponent<Collider>());
+            pole.GetComponent<MeshRenderer>().sharedMaterial = metal;
+
+            var col = root.AddComponent<BoxCollider>();
+            col.size = new Vector3(legSpread * 2.7f, towerHeight + 3f, legSpread * 2.7f);
+            col.center = new Vector3(0f, (towerHeight + 3f) * 0.5f, 0f);
+        }
+
         /// <summary>Title screen: Start / Settings / Quit. Its own tiny scene so a
         /// build boots there instead of straight into Mission01.</summary>
         static void BuildMainMenuScene()
@@ -1209,6 +1534,11 @@ namespace Ironfield.EditorTools
             new(-300, 0, -190), new(-180, 0, -120), new(-70, 0, -60),
             new(40, 0, 0), new(150, 0, 60), new(300, 0, 170), new(430, 0, 300),
         };
+        // Visual-only landmarks (Watchtower) shared by all 3 missions — purely
+        // for a distant silhouette to fly toward / navigate by on the bigger
+        // map, not gameplay. Kept well inside the soft boundary radius (~884m)
+        // so they're always actually reachable.
+        static readonly Vector2[] LandmarkPositions = { new(-820, -120), new(580, 580) };
 
         static float Fbm(float x, float y, int oct, float lac = 2.03f, float gain = 0.5f)
         {
@@ -1221,7 +1551,7 @@ namespace Ironfield.EditorTools
             return sum;
         }
 
-        static Terrain BuildTerrain()
+        static Terrain BuildTerrain(MissionBuildConfig cfg)
         {
             var data = new TerrainData
             {
@@ -1232,6 +1562,12 @@ namespace Ironfield.EditorTools
             };
             int res = data.heightmapResolution;
             var h = new float[res, res];
+            // A per-mission phase offset on the noise coordinate — NOT a change
+            // to frequency/amplitude — so Mission02/03 get a genuinely different
+            // hill layout (same "shape" of noise, sampled from elsewhere in it)
+            // instead of the exact same terrain under a different convoy. Zero
+            // for Mission01, which keeps its original look pixel-for-pixel.
+            Vector2 so = cfg.terrainSeedOffset;
             for (int y = 0; y < res; y++)
             for (int x = 0; x < res; x++)
             {
@@ -1245,8 +1581,8 @@ namespace Ironfield.EditorTools
                 // how big the terrain is — matches the ~465m/~146m wavelengths
                 // the old 1024m map had (2.2/1024 and 7/1024 cycles per metre).
                 float e = 0.30f
-                          + Fbm(wx * 0.002148f + 11f, wz * 0.002148f + 7f, 3) * 0.9f
-                          + Fbm(wx * 0.006836f, wz * 0.006836f, 3) * 0.18f
+                          + Fbm(wx * 0.002148f + 11f + so.x, wz * 0.002148f + 7f + so.y, 3) * 0.9f
+                          + Fbm(wx * 0.006836f + so.x, wz * 0.006836f + so.y, 3) * 0.18f
                           + (nx - 0.5f) * 0.12f;                    // rise to the east
 
                 // broad flattened corridor for the road: real distance to the
@@ -1346,7 +1682,7 @@ namespace Ironfield.EditorTools
             return tex;
         }
 
-        static void PaintTerrain(Terrain terrain, List<Transform> waypoints)
+        static void PaintTerrain(Terrain terrain, List<Transform> waypoints, MissionBuildConfig cfg)
         {
             var data = terrain.terrainData;
             // doubled alongside the terrain footprint to hold the same
@@ -1400,12 +1736,15 @@ namespace Ironfield.EditorTools
                 float slope01 = Mathf.Clamp01((steep - 20f) / 26f);
                 float hz01 = data.GetInterpolatedHeight(u, vv) / tSize.y;
 
-                float macro = Fbm(wx * 0.0045f + 2f, wz * 0.0045f + 6f, 3);
-                float meso = Mathf.PerlinNoise(wx * 0.02f + 4f, wz * 0.02f + 1f);
+                float macro = Fbm(wx * 0.0045f + 2f + cfg.terrainSeedOffset.x * 0.5f,
+                                   wz * 0.0045f + 6f + cfg.terrainSeedOffset.y * 0.5f, 3);
+                float meso = Mathf.PerlinNoise(wx * 0.02f + 4f + cfg.terrainSeedOffset.x * 0.5f,
+                                                wz * 0.02f + 1f + cfg.terrainSeedOffset.y * 0.5f);
 
                 // grass-dominant meadow with dry patches, not the other way round
-                float wGrass = (1.15f + macro * 1.3f) * (1f - slope01);
-                float wDry = Mathf.Clamp01(0.30f + macro * 1.9f) * (1f - slope01) * 0.8f;
+                // (dryness pulls the balance toward dry/burn for later missions).
+                float wGrass = (1.15f + macro * 1.3f) * (1f - slope01) * (1f - cfg.dryness * 0.35f);
+                float wDry = Mathf.Clamp01(0.30f + macro * 1.9f + cfg.dryness * 0.6f) * (1f - slope01) * 0.8f;
                 float wDirt = Mathf.Clamp01((meso - 0.66f) * 4f) * (1f - slope01) * 0.6f;
                 // thin shoulder only — the crisp road surface is the ribbon mesh
                 float wRoad = RoadMask(new Vector3(wx, 0, wz), waypoints, 6.5f, 2.5f) * 4f;
@@ -1417,7 +1756,7 @@ namespace Ironfield.EditorTools
                     float dd = new Vector2(wx - c.x, wz - c.z).magnitude;
                     wBurn += Mathf.Clamp01(1f - dd / r) * (0.6f + meso * 0.8f);
                 }
-                wBurn *= 4f;
+                wBurn *= 4f * (1f + cfg.dryness * 1.2f);   // more war-torn-looking scars later on
 
                 float tot = wGrass + wDry + wDirt + wRoad + wRock + wBurn + 1e-4f;
                 maps[y, x, 0] = wGrass / tot;
@@ -1692,7 +2031,7 @@ namespace Ironfield.EditorTools
             return prefab;
         }
 
-        static void ScatterVegetation(Terrain terrain, List<Transform> waypoints)
+        static void ScatterVegetation(Terrain terrain, List<Transform> waypoints, MissionBuildConfig cfg)
         {
             var broad = BuildFoliagePrefab(Foliage.Broadleaf);
             var conif = BuildFoliagePrefab(Foliage.Conifer);
@@ -1702,7 +2041,9 @@ namespace Ironfield.EditorTools
 
             var trees = new GameObject("Trees").transform;
             var scatter = new GameObject("Scatter").transform;
-            var rng = new System.Random(4242);
+            // seeded off the mission's own noise offset so each mission gets a
+            // different (but reproducible) scatter pattern, not just a resized copy.
+            var rng = new System.Random(4242 + Mathf.RoundToInt(cfg.terrainSeedOffset.x));
             Vector3 tPos = terrain.transform.position;
             Vector3 tSize = terrain.terrainData.size;
 
@@ -1710,9 +2051,12 @@ namespace Ironfield.EditorTools
             // the full 4x — the old map was already fairly dense near the road;
             // scaling density with distance-from-road already thins it out
             // further away, so a flat 4x would mostly pile more trees near the
-            // village without doing much for the empty far terrain).
+            // village without doing much for the empty far terrain). Then scaled
+            // again by vegetationDensityMul so later missions read barer.
+            int treeTarget = Mathf.RoundToInt(2400 * cfg.vegetationDensityMul);
+            int rockTarget = Mathf.RoundToInt(460 * cfg.vegetationDensityMul);
             int treeN = 0, rockN = 0;
-            for (int i = 0; i < 30000 && (treeN < 2400 || rockN < 460); i++)
+            for (int i = 0; i < 30000 && (treeN < treeTarget || rockN < rockTarget); i++)
             {
                 float nx = (float)rng.NextDouble();
                 float nz = (float)rng.NextDouble();
@@ -1722,10 +2066,11 @@ namespace Ironfield.EditorTools
                 if (Vector3.Distance(world, new Vector3(40, 0, 0)) < 62f) continue;
                 float steep = terrain.terrainData.GetSteepness(nx, nz);
 
-                float woods = Fbm(world.x * 0.010f + 5f, world.z * 0.010f + 2f, 3);
+                float woods = Fbm(world.x * 0.010f + 5f + cfg.terrainSeedOffset.x * 0.3f,
+                                   world.z * 0.010f + 2f + cfg.terrainSeedOffset.y * 0.3f, 3);
                 world.y = SampleHeight(terrain, world);
 
-                if (steep > 24f && rockN < 620)
+                if (steep > 24f && rockN < Mathf.RoundToInt(620 * cfg.vegetationDensityMul))
                 {
                     var rk = (GameObject)PrefabUtility.InstantiatePrefab(rock);
                     rk.transform.SetParent(scatter);
@@ -1738,7 +2083,7 @@ namespace Ironfield.EditorTools
                     continue;
                 }
 
-                if (woods < 0.06f && treeN >= 960) continue;    // keep some open fields
+                if (woods < 0.06f && treeN >= Mathf.RoundToInt(960 * cfg.vegetationDensityMul)) continue;    // keep some open fields
                 GameObject src;
                 double roll = rng.NextDouble();
                 if (woods > 0.16f) src = roll < 0.35 ? conif : broad;

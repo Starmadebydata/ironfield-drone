@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Ironfield.Vehicles
 {
-    public enum VehicleClass { Tank, IFV, Truck }
+    public enum VehicleClass { Tank, IFV, Truck, SPAAG }
 
     /// <summary>
     /// A targetable enemy vehicle. Wraps a <see cref="HealthComponent"/>, tells
@@ -20,6 +20,10 @@ namespace Ironfield.Vehicles
         public string displayName = "Armoured target";
         [Tooltip("Command/HQ vehicle: worth a score bonus, flagged on the HUD.")]
         public bool highValue;
+        [Tooltip("Side objective off the convoy route: still registers/destroys/scores "
+                + "normally, but doesn't count toward VehicleRegistry's mandatory total, "
+                + "so it's never required to win or lose the mission over.")]
+        public bool optional;
 
         HealthComponent _health;
         bool _destroyed;

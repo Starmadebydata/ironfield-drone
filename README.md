@@ -41,10 +41,17 @@ drone. Switch between mouse+keyboard and a gamepad mid-session — the on-screen
 control prompts follow whichever you last actually used.
 
 **Campaign.** `Mission01` (baseline, 6 vehicles) → `Mission02` (7 vehicles + a
-static flak position — indestructible, forces you to vary your approach) →
-`Mission03` (8 vehicles, 2 flak positions, and a flagged HQ command vehicle
-worth a score bonus). Convoys get faster mission over mission. A win screen
-gets a "Next Mission ▶" button straight into the next unlocked slot.
+static flak position — indestructible, forces you to vary your approach — and
+a SPAAG in the convoy, dangerous to linger near) → `Mission03` (8 vehicles,
+2 flak positions, 2 SPAAGs, and a flagged HQ command vehicle worth a score
+bonus). Convoys get faster and the terrain itself gets drier/barer mission
+over mission. A win screen gets a "Next Mission ▶" button straight into the
+next unlocked slot.
+
+**Off the road.** A few RadioOutpost side objectives are scattered away from
+the convoy route each mission — optional, worth bonus score, never required
+to win. A couple of watchtowers stand as pure landmarks to navigate by on the
+much bigger map.
 
 **Drone type.** The mission list has a picker above it: **轻型无人机** (Light,
 always available — standard health/speed/agility) vs **重型无人机** (Heavy,

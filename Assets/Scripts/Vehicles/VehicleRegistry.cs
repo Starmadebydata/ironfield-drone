@@ -11,6 +11,11 @@ namespace Ironfield.Vehicles
         public static int TotalRegistered { get; private set; }
         public static int DestroyedCount { get; private set; }
         public static int EscapedCount { get; private set; }
+        /// <summary>Subset of TotalRegistered/DestroyedCount that are Vehicle.optional
+        /// side objectives — MissionManager subtracts these out before checking win/lose
+        /// so an optional target never gates mission completion.</summary>
+        public static int OptionalTotal { get; private set; }
+        public static int OptionalDestroyed { get; private set; }
 
         /// <summary>Fired once per vehicle when it is knocked out.</summary>
         public static event System.Action<Vehicle> AnyDestroyed;
@@ -25,6 +30,8 @@ namespace Ironfield.Vehicles
             TotalRegistered = 0;
             DestroyedCount = 0;
             EscapedCount = 0;
+            OptionalTotal = 0;
+            OptionalDestroyed = 0;
             AnyDestroyed = null;
             AnyEscaped = null;
         }
@@ -34,6 +41,9 @@ namespace Ironfield.Vehicles
             TotalRegistered = _alive.Count;
             DestroyedCount = 0;
             EscapedCount = 0;
+            OptionalDestroyed = 0;
+            OptionalTotal = 0;
+            foreach (var v in _alive) if (v != null && v.optional) OptionalTotal++;
         }
 
         internal static void Register(Vehicle v)
@@ -50,6 +60,7 @@ namespace Ironfield.Vehicles
             if (_alive.Remove(v))
             {
                 DestroyedCount++;
+                if (v.optional) OptionalDestroyed++;
                 AnyDestroyed?.Invoke(v);
             }
         }

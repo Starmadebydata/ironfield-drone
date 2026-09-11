@@ -92,8 +92,10 @@ namespace Ironfield.Mission
         void OnKill(Vehicle v)
         {
             _killBanner = 2.2f;
-            _killText = "TARGET DESTROYED  " +
-                        $"{mission.VehiclesTotal - mission.VehiclesLeft}/{mission.VehiclesTotal}";
+            _killText = v != null && v.optional
+                ? $"BONUS TARGET DESTROYED  {mission.BonusKilled}/{mission.BonusTotal}"
+                : "TARGET DESTROYED  " +
+                  $"{mission.VehiclesTotal - mission.VehiclesLeft}/{mission.VehiclesTotal}";
             _hitMarker = 0.3f;
             _hitWasKill = true;
             PlayPing(1.4f);
@@ -134,11 +136,20 @@ namespace Ironfield.Mission
                 $"COLUMN   {mission.Killed}/{mission.VehiclesTotal} destroyed", _label);
             string droneType = GameSettings.SelectedDrone == 1 ? "重型" : "轻型";
             GUI.Label(new Rect(24, 42, 520, 24), $"DRONES   {mission.DronesLeft}   ({droneType})", _label);
+            float statusY = 66f;
+            if (mission.BonusTotal > 0)
+            {
+                var bonus = new GUIStyle(_label) { fontSize = 12 };
+                bonus.normal.textColor = new Color(0.75f, 0.85f, 1f);
+                GUI.Label(new Rect(24, statusY, 520, 20),
+                    $"BONUS   {mission.BonusKilled}/{mission.BonusTotal}", bonus);
+                statusY += 20f;
+            }
             if (mission.Escaped > 0)
             {
                 var warn = new GUIStyle(_label);
                 warn.normal.textColor = new Color(1f, 0.5f, 0.25f);
-                GUI.Label(new Rect(24, 66, 520, 24), $"BROKE THROUGH   {mission.Escaped}", warn);
+                GUI.Label(new Rect(24, statusY, 520, 24), $"BROKE THROUGH   {mission.Escaped}", warn);
             }
 
             var drone = mission.ActiveDrone;
@@ -440,15 +451,18 @@ namespace Ironfield.Mission
             GUI.Label(new Rect(0, h * 0.24f, w, 44), won ? "COLUMN DESTROYED" : "MISSION FAILED", _big);
 
             int t = Mathf.RoundToInt(mission.TimeActive);
-            string[] lines =
+            var lineList = new List<string>
             {
                 $"Destroyed      {mission.Killed} / {mission.VehiclesTotal}",
                 $"Broke through  {mission.Escaped}",
-                $"Drones used    {mission.droneStock - mission.DronesLeft} / {mission.droneStock}",
-                $"Time           {t / 60:0}:{t % 60:00}",
-                "",
-                $"SCORE   {mission.Score}      GRADE   {mission.Grade}",
             };
+            if (mission.BonusTotal > 0)
+                lineList.Add($"Bonus targets  {mission.BonusKilled} / {mission.BonusTotal}");
+            lineList.Add($"Drones used    {mission.droneStock - mission.DronesLeft} / {mission.droneStock}");
+            lineList.Add($"Time           {t / 60:0}:{t % 60:00}");
+            lineList.Add("");
+            lineList.Add($"SCORE   {mission.Score}      GRADE   {mission.Grade}");
+            string[] lines = lineList.ToArray();
             for (int i = 0; i < lines.Length; i++)
                 GUI.Label(new Rect(0, h * 0.24f + 58 + i * 24, w, 22), lines[i], _center);
 

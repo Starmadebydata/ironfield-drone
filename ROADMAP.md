@@ -59,10 +59,11 @@ CC0 录音,Built-in 渲染管线未做美术终审。可玩、可通关/失败,�
    0→1→2、车队速度 1.0→1.15→1.3 倍)。用编辑器时(非运行时)的
    `MissionBuildConfig`(`IronfieldSetup.cs`)驱动 `BuildScene`,而不是运行时
    ScriptableObject——场景本来就是无头预烘焙的,运行时不需要再读一份数据。
-   **范围调整**:没做"地形/天气/时段"随关卡变化,3 关地形/村庄是同一份(同
-   一套固定噪声种子),只有车队构成和敌方部署不同。加地形差异化需要给
-   `BuildTerrain`/`ScatterVegetation`/`ScatterRuins` 加种子偏移参数,单独算一
-   块工作量,先留到后面。
+   **2026-09-12 补上了地形差异化**(见下面"内容密度"一节):`terrainSeedOffset`
+   让 3 关地形高度/纹理噪声采样不同区域(不是同一份地形换车队),
+   `dryness`/`moodTint`/`vegetationDensityMul` 让后面几关看起来更干燥/更
+   荒芜/更战损。仍然没做的是"天气/时段"变化(晴天↔阴天/白天↔黄昏那种),
+   目前 3 关光照本身还是同一套。
 2. ✅ **关卡选择/进度**:`Ironfield.Core.CampaignProgress`(PlayerPrefs)记录
    已解锁关卡数 + 每关最佳分数/评级;`Ironfield.Core.MissionCatalog` 是固定
    编译期关卡表(id/显示名/场景名)。主菜单"开始任务"现在是关卡列表,锁定的
@@ -270,3 +271,43 @@ EditMode 单测(解锁链、最佳成绩、胜负不同结果)。EditMode 14/14�
      拿到了从实际地形算出的合理半径(不是默认的巨大值);一条真的把无人机
      瞬移到硬边界外 300m、冻结输入、跑几帧物理,断言最终位置被钳回边界内。
    EditMode 14/14、PlayMode 14/14(12 + 2 条新增)。
+
+## 阶段外补充:内容密度(2026-09-12,用户直接提出)
+
+地图放大之后内容跟着做了一轮加密,按用户选的四个方向都做了(额外可选目标为
+主、地标、敌方种类、关卡地形差异化):
+
+1. **额外可选目标**:新的 `RadioOutpost`(无线电中继站)——`Vehicle.optional`
+   标记,`VehicleRegistry` 新增 `OptionalTotal`/`OptionalDestroyed` 与主力车队
+   分开计数,`MissionManager.VehiclesTotal`/`Killed` 只算主力车队,不会因为
+   有额外目标没打就赢不了/输不了。摧毁给独立的 400 分奖励(`_bonusTargetScore`),
+   HUD 新增 `BONUS x/y` 行,结算面板也单列一行。血量只有 45(比任何主力车辆
+   都脆),没有武装(没挂 `VehicleTurret`)——纯粹是"值得绕路"的奖励,不是
+   威胁。3 关各放 2-3 个,散布在车队路线两侧远处(离地图边界软半径还有余量,
+   保证飞得到)。
+2. **地标/侦查点**:新的 `Watchtower`(瞭望塔)——纯环境物件,没有
+   Vehicle/HealthComponent,不能打、不算目标,只是给放大后的地图一个能从远处
+   认路的视觉参照物,3 关共用同 2 个位置。
+3. **敌方种类更多**:新的 `VehicleClass.SPAAG`(自行高炮)。复用 IFV 的
+   CC-BY 外部模型作为车体(没有另外找新的 CC0 模型,风险类型跟当初找车辆
+   模型时一样),视觉区分靠 `BuildSpaagTopside` 加的双联装炮管+雷达碟(挂载
+   在车顶,cosmetic-only,不影响 `VehicleTurret` 的实际开火逻辑)+跟坦克一样
+   的 `Militarize` 染色。数值上是"火力覆盖型"而不是"重炮偷袭型":射程 230
+   (IFV 150)、开火间隔 0.07s(IFV 0.11s)、连发 8 发(IFV 5发)、单发伤害只
+   有 3.5(IFV 4.5)——总 DPS 更高但更依赖玩家"别在附近逗留",跟坦克"偶尔
+   一记重拳"的手感刻意做出区别。Mission02 换 1 辆 IFV、Mission03 换 2 辆
+   IFV,车队总规模不变(6→7→8 依旧成立)。
+4. **关卡地形差异化**:见上面 P1 第 1 条的更新——`terrainSeedOffset` 让 3 关
+   山丘/纹理斑块/森林分布采样噪声场里不同的相位(不是重新设计噪声函数,只是
+   让 3 关"从同一张噪声图里截取不同区域"),`dryness` 让后两关草地比例降低、
+   干草/焦黑比例升高,`vegetationDensityMul`(1.0→0.85→0.68)让后两关植被更
+   稀疏,`moodTint` 给光照/雾色整体调一层暖黄/灰烬色。Mission01 全部参数保持
+   "无变化"默认值,像素级维持原样(不影响已有截图/记忆里对 Mission01 外观
+   的描述)。
+   - **范围调整**:没做天气/时段系统(晴↔阴、白天↔黄昏),只做了噪声相位+
+     色调+密度这三个"轻量能落地"的差异化维度。
+5. 新增 `ContentDensityTests.cs`(3 条 PlayMode):验证 Mission01 的
+   `VehiclesTotal` 只算主力车队(不含 2 个 bonus target)、验证摧毁一个
+   bonus target 不会结束任务且正确记进 `BonusKilled`、验证 Mission02 的
+   SPAAG 开火间隔确实比 IFV 快。EditMode 14/14、PlayMode 17/17
+   (14 + 3 条新增)。

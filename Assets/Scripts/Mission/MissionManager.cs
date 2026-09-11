@@ -37,12 +37,17 @@ namespace Ironfield.Mission
         public int DronesLeft { get; private set; }
         bool _currentDroneSpent;
         int _highValueBonus;
+        int _bonusTargetScore;
 
-        public int Killed => VehicleRegistry.DestroyedCount;
+        // Optional (Vehicle.optional) side objectives are excluded from the
+        // "column" the player must clear to win — see VehicleRegistry.OptionalTotal.
+        public int Killed => VehicleRegistry.DestroyedCount - VehicleRegistry.OptionalDestroyed;
         public int Escaped => VehicleRegistry.EscapedCount;
-        public int VehiclesLeft => Mathf.Max(0, VehicleRegistry.TotalRegistered
-                                   - VehicleRegistry.DestroyedCount - VehicleRegistry.EscapedCount);
-        public int VehiclesTotal => VehicleRegistry.TotalRegistered;
+        public int VehiclesLeft => Mathf.Max(0, VehiclesTotal - Killed - Escaped);
+        public int VehiclesTotal => VehicleRegistry.TotalRegistered - VehicleRegistry.OptionalTotal;
+        /// <summary>Off-route side objectives: not required to win, worth bonus score.</summary>
+        public int BonusKilled => VehicleRegistry.OptionalDestroyed;
+        public int BonusTotal => VehicleRegistry.OptionalTotal;
         public DroneController ActiveDrone { get; private set; }
 
         /// <summary>Seconds since the mission became Active (for the briefing fade + score).</summary>
@@ -60,7 +65,9 @@ namespace Ironfield.Mission
 
         void OnAnyVehicleDestroyed(Vehicle v)
         {
-            if (v != null && v.highValue) _highValueBonus += 750;
+            if (v == null) return;
+            if (v.highValue) _highValueBonus += 750;
+            if (v.optional) _bonusTargetScore += 400;
         }
 
         void Start()
@@ -83,13 +90,13 @@ namespace Ironfield.Mission
             if (State != MissionState.Active) return;
             TimeActive += Time.deltaTime;
 
-            int total = VehicleRegistry.TotalRegistered;
+            int total = VehiclesTotal;
             if (total == 0) return;
 
-            if (VehicleRegistry.DestroyedCount >= total)
+            if (Killed >= total)
                 EndMission(MissionState.Won);
-            // every vehicle is off the board and you didn't get them all
-            else if (VehicleRegistry.DestroyedCount + VehicleRegistry.EscapedCount >= total)
+            // every mandatory vehicle is off the board and you didn't get them all
+            else if (Killed + Escaped >= total)
                 EndMission(MissionState.Lost);
         }
 
@@ -102,6 +109,7 @@ namespace Ironfield.Mission
             int dronesUsed = droneStock - DronesLeft;
             Score = Killed * 1000
                     + _highValueBonus
+                    + _bonusTargetScore
                     - Escaped * 400
                     - dronesUsed * 120
                     - Mathf.RoundToInt(TimeActive) * 2;
