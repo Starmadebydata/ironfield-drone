@@ -232,15 +232,35 @@ EditMode 单测(解锁链、最佳成绩、胜负不同结果)。EditMode 14/14�
 
 ## P3 — 上架准备(如果目标是真的发布)
 
-1. **构建与分发**:选平台(建议先 itch.io,免费/免审核,验证有没有人玩);
-   Mac + Windows 各出一个 Development→Release 构建脚本
-   (`tools/build_release.sh` 之类,复用现有 headless 套路)。
-2. **商店素材**:图标、3-5 张截图、30 秒预告(现有 smoke screenshot 管线
-   可以直接扩展成"自动录屏脚本")、商店描述文案。
-3. **法务**:分发构建前逐条核对 `CREDITS.md` 里的 CC-BY 模型署名是否随
-   构建物一起可见(比如加进 `MainMenu` 的"制作人员"页,而不是只存在于仓库)。
-4. **反馈渠道**:itch.io 评论区 / 一个简单的 issue 模板,收集真实玩家的
-   上手卡点。
+**状态(2026-09-12):1(仅 Mac)、2、3 已实现;4 留给用户手动做(见下)。**
+
+1. ✅ **构建与分发(仅 Mac)**:`IronfieldSetup.BuildRelease()`(Ironfield 菜单
+   A 项)——`BuildOptions.None`(不带 Development 标志),`bundleVersion`
+   设成 "0.1.0",真实 bundle identifier,自动生成的方形图标。产物
+   `Builds/Release/Ironfield.app`,152 MB,0 errors 0 warnings。**没做
+   Windows 构建**:这台机器没装 Windows 平台模块(`PlaybackEngines/` 下只有
+   iOS/WebGL),无法无头交叉编译;跟之前 `BuildDevPlayer` 一样的限制。
+   实际启动测试(不是无头截图,是真的 `open` 这个 .app 跑起来,用
+   computer-use 截图):菜单/制作人员面板/任务内 HUD 全部渲染正确、可操作。
+   **发现一个部署摩擦点,记录在 `store/itch_page_text.md` 里**:构建没有
+   代码签名/公证(需要付费 Apple Developer 账号,这个项目没有),玩家从
+   itch.io 下载后 macOS Gatekeeper 会拦截首次启动,需要"右键→打开"或去
+   系统设置里手动放行——已经写进商店页文案,提醒玩家这是正常现象。
+2. ✅ **商店素材**:`store/`(gitignore,不进仓库——这是营销交付物不是项目
+   源码,跟 `demo_output/`/`Builds/` 一个待遇)。封面 + 5 张精选截图(直接
+   复用 `IronfieldSetup.Screenshot` 管线的产出,不是重新截的)、完整商店页
+   文案(标题/标签/简介/正文/平台说明,中英都有)、打包好的
+   `Ironfield-0.1.0-mac.zip`(51 MB)。**没做 30 秒预告片**:早前 session
+   里录过一版 demo 视频,但那是在地图放大、SPAAG/支线目标/URP 迁移这些改动
+   *之前*录的,画面已经过时,需要重录——`DemoRecorder`/`DemoRunner` 管线还
+   在,重录只是时间成本,不是技术阻碍,留给下一次任务。
+3. ✅ **法务**:主菜单新增"制作人员"面板(P3 本次补上,见上一次会话记录),
+   随构建物一起可见,不再只存在于仓库的 `CREDITS.md` 里。
+4. ⛔ **实际发布到 itch.io——没有替用户做,也不会做**:创建/操作 itch.io
+   账号发布内容超出了这次会话能做的范围(账号创建/公开发布这类操作需要用户
+   自己在场操作)。已经把全部素材(文案/封面/截图/构建包)整理好交给用户,
+   itch.io 页面本身、上传、"发布为公开"这几步需要用户自己在浏览器里完成。
+   反馈渠道(评论区/issue 模板)等页面建好之后再补。
 
 ---
 

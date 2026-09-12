@@ -24,3 +24,4 @@ Ironfield_smoke*.png
 *.png.import
 __pycache__/
 /demo_output/
+/store/
