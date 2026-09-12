@@ -1,5 +1,6 @@
 using System.Collections;
 using Ironfield.Core;
+using Ironfield.Drone;
 using Ironfield.Mission;
 using Ironfield.Vehicles;
 using NUnit.Framework;
@@ -87,6 +88,69 @@ namespace Ironfield.Tests
             Assert.Less(drone.transform.position.y, startAlt,
                 $"autopilot should descend toward a target below it (start alt={startAlt:0.0}, "
                 + $"now={drone.transform.position.y:0.0})");
+        }
+
+        [UnityTest]
+        public IEnumerator AutopilotTarget_makes_progress_past_a_direct_obstacle()
+        {
+            // Regression test for a real user-reported bug: autopilot aimed
+            // straight at the target with zero awareness of anything in
+            // between, so a tree/pole directly on the line to the target
+            // (common — the map scatters ~2000+ of them) would physically
+            // wedge the drone in place, since UpdateAutopilotAim kept
+            // commanding "more forward" into the same obstacle every frame.
+            // This doesn't require a real tree — any Environment-layer
+            // collider directly ahead reproduces it.
+            PlayerPrefs.SetInt("ironfield.seenTutorial", 1);
+            yield return SceneManager.LoadSceneAsync("Mission01", LoadSceneMode.Single);
+            for (int i = 0; i < 5; i++) yield return null;
+            foreach (var tt in Object.FindObjectsByType<VehicleTurret>(FindObjectsSortMode.None))
+                tt.enabled = false;
+
+            var mgr = Object.FindAnyObjectByType<MissionManager>();
+            var drone = mgr.ActiveDrone;
+            Assert.IsNotNull(drone);
+            // Driving AutopilotTarget directly, same as the other isolated
+            // steering tests above — DiveAssist has to be off or its own
+            // FixedUpdate nulls AutopilotTarget straight back out every tick
+            // whenever its own (separate) hard-lock gate isn't satisfied,
+            // which it never is here since no real lock was acquired.
+            drone.GetComponent<DiveAssist>().enabled = false;
+
+            drone.useDebugInput = true;
+            drone.debugInput = new Vector4(1f, 0f, 0f, 0f);
+            for (int i = 0; i < 15; i++) yield return new WaitForFixedUpdate();
+            drone.useDebugInput = false;
+
+            Vector3 start = drone.transform.position;
+            Vector3 fwd = drone.transform.forward;
+            Vector3 target = start + fwd * 90f;
+
+            // sized like the game's actual scattered trees (BuildFoliagePrefab
+            // colliders run roughly 2-8m tall, see IronfieldSetup.cs), not an
+            // arbitrary wall — squarely on the direct line to the target
+            var obstacle = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            obstacle.transform.position = start + fwd * 35f + Vector3.up * 3.5f;
+            obstacle.transform.localScale = new Vector3(6f, 7f, 3f);
+            obstacle.layer = Ironfield.Core.GameLayers.Environment;
+
+            drone.AutopilotTarget = target;
+
+            float startDistToTarget = Vector3.Distance(start, target);
+            for (int i = 0; i < 400; i++)
+            {
+                yield return new WaitForFixedUpdate(); // ~6.7s
+                if (drone == null) break;  // clearer failure than a stack trace below
+            }
+
+            Assert.IsNotNull(drone,
+                "the drone should navigate past the obstacle, not collide hard enough to be destroyed by it");
+            float endDistToTarget = Vector3.Distance(drone.transform.position, target);
+            Assert.Less(endDistToTarget, startDistToTarget * 0.5f,
+                $"autopilot should make real progress past a direct obstacle instead of getting "
+                + $"wedged against it (start dist={startDistToTarget:0}, end dist={endDistToTarget:0})");
+
+            Object.Destroy(obstacle);
         }
 
         [UnityTest]

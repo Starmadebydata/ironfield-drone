@@ -68,6 +68,7 @@ namespace Ironfield.Drone
         DroneInput _in;
         Vector2 _aim;
         float _bank, _pitchVis, _heading;
+        float _stuckTimer;
 
         public System.Action FireRequested;
         public System.Action RecallRequested;
@@ -257,8 +258,105 @@ namespace Ironfield.Drone
             // AutopilotTests now also covers a pitch-dominant case specifically.
             float aimY = Mathf.Clamp(elevation / pitchRange, -1f, 1f);
 
+            // --- obstacle avoidance ----------------------------------
+            // Autopilot used to just aim straight at the target with zero
+            // awareness of what's in between — the map is scattered with
+            // ~2000+ trees and utility poles (ScatterVegetation/
+            // ScenePropsPass), dense enough that a long straight run at
+            // speed would eventually clip one, and UpdateAutopilotAim kept
+            // commanding "more forward" into the same obstacle every frame
+            // afterward since it never noticed. Cast a short forward+side
+            // probe; a blocked centre nudges pitch up (climb over — works
+            // for most single trees/poles, which are short relative to how
+            // fast the drone can gain altitude) and yaws toward whichever
+            // side is actually clear.
+            // Skipped inside the terminal engagement radius (DiveAssist fires
+            // the warhead at 6.5m — 20m gives real margin): the target itself
+            // is normally sitting on/near the ground, on the same Environment
+            // layer the avoidance probe checks, so a close-range dive's own
+            // forward ray legitimately hits terrain right around the target
+            // it's *supposed* to be diving into. Without this gate, avoidance
+            // fought (and could outright cancel) every real terminal dive —
+            // caught by Auto_attack_setting_finishes_a_committed_dive_on_its_own
+            // regressing while tuning this.
+            if (dist > 20f)
+            {
+                (float avoidX, float avoidY) = ComputeAvoidance();
+                aimX = Mathf.Clamp(aimX + avoidX, -1f, 1f);
+                // Climb overrides (takes the max), doesn't just add: the
+                // target itself is often at or below the drone's altitude, so
+                // its own aimY is frequently negative (dive) — summing would
+                // let that partially cancel the escape climb right when it
+                // matters most. The probe already returns 0 when clear, so
+                // this only ever raises aimY while something is actually ahead.
+                if (avoidY > 0f) aimY = Mathf.Max(aimY, avoidY);
+            }
+
+            // Fallback safety net: if the drone is still barely moving after
+            // sustained autopilot control despite full throttle (physically
+            // wedged against something the probe above didn't fully clear —
+            // e.g. approaching an obstacle edge-on, outside the probe's
+            // narrow cone), force a hard climb-and-turn escape regardless of
+            // what the raycasts currently say.
+            _stuckTimer = _speed < 3f ? _stuckTimer + dt : 0f;
+            if (_stuckTimer > 0.6f)
+            {
+                aimY = 1f;
+                aimX = Mathf.Clamp(aimX + (aimX >= 0f ? 1f : -1f), -1f, 1f);
+            }
+
             _aim = Vector2.Lerp(_aim, new Vector2(aimX, aimY), 1f - Mathf.Exp(-8f * dt));
             _in.Throttle = 1f;
+        }
+
+        /// <summary>Forward/side probes on the Environment layer (terrain,
+        /// trees, poles, buildings — never vehicles, so this never steers the
+        /// drone away from its actual target). Returns an additive (yaw, pitch)
+        /// nudge in the same -1..1 aim space UpdateAutopilotAim works in,
+        /// scaled by how close the obstacle is — (0,0) when the way is clear.</summary>
+        (float x, float y) ComputeAvoidance()
+        {
+            int envMask = Ironfield.Core.GameLayers.EnvironmentMask;
+            // Long lookahead relative to how fast the drone can actually gain
+            // altitude — a weak/late response reliably meant clipping the
+            // obstacle before finishing the climb (verified: an earlier,
+            // shorter-lookahead version of this let the drone collide hard
+            // enough with a test obstacle to die from the impact damage,
+            // exactly the outcome this is supposed to prevent).
+            float lookAhead = Mathf.Clamp(18f + _speed * 1.8f, 26f, 70f);
+            Vector3 origin = transform.position;
+            // Level (heading-only), NOT transform.forward: the target is
+            // usually on/near the ground, so a real dive legitimately points
+            // the nose down toward terrain near it — probing along the actual
+            // 3D nose vector kept reading that as "obstacle ahead" and firing
+            // a climb that fought every descent, not just real trees/poles.
+            // A level probe only catches things that actually stick up into
+            // the flight corridor at the drone's current altitude.
+            Vector3 fwd = Quaternion.Euler(0f, _heading, 0f) * Vector3.forward;
+
+            if (!Physics.Raycast(origin, fwd, out var centreHit, lookAhead, envMask, QueryTriggerInteraction.Ignore))
+                return (0f, 0f);
+
+            // floored, not just proportional to distance: a just-barely-in-
+            // range obstacle still gets a real response instead of a token
+            // nudge that's too weak to actually climb clear in time.
+            float urgency = Mathf.Clamp(1.2f - centreHit.distance / lookAhead, 0.6f, 1f);
+
+            Vector3 right = Quaternion.Euler(0f, _heading, 0f) * Vector3.right;   // level, same reasoning as fwd above
+            bool leftBlocked = Physics.Raycast(origin, (fwd - right * 0.6f).normalized,
+                lookAhead * 0.7f, envMask, QueryTriggerInteraction.Ignore);
+            bool rightBlocked = Physics.Raycast(origin, (fwd + right * 0.6f).normalized,
+                lookAhead * 0.7f, envMask, QueryTriggerInteraction.Ignore);
+
+            float sideSteer = 0f;
+            if (leftBlocked && !rightBlocked) sideSteer = 1f;         // swerve right
+            else if (rightBlocked && !leftBlocked) sideSteer = -1f;   // swerve left
+
+            // climbing over is the default response (works for the common
+            // case — a single tree/pole shorter than the drone can climb in
+            // the time it takes to reach it); side-step only kicks in once a
+            // clear side has actually been found above.
+            return (sideSteer * urgency, urgency);
         }
 
         void OnCollisionEnter(Collision c)
