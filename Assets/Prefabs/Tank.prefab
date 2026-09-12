@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &1417665961494152537
+--- !u!1 &866464306615339345
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,40 +8,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7440112368008008148}
-  m_Layer: 0
-  m_Name: Muzzle
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &7440112368008008148
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1417665961494152537}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1.809577, z: 1.0404472}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 7775047931370548617}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &3472395177841086557
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2691806039030889844}
-  - component: {fileID: 1964973688491424677}
-  - component: {fileID: 6600123757040978892}
+  - component: {fileID: 2492713763663623253}
+  - component: {fileID: 3978941297707600880}
+  - component: {fileID: 8816828352799768238}
   m_Layer: 0
   m_Name: tank
   m_TagString: Untagged
@@ -49,36 +18,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &2691806039030889844
+--- !u!4 &2492713763663623253
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3472395177841086557}
+  m_GameObject: {fileID: 866464306615339345}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071067}
   m_LocalPosition: {x: -0.28007528, y: 0.2375258, z: 0.048863146}
   m_LocalScale: {x: 100, y: 100, z: 100}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 4684966812973029180}
+  m_Father: {fileID: 3006079193453360237}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &1964973688491424677
+--- !u!33 &3978941297707600880
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3472395177841086557}
+  m_GameObject: {fileID: 866464306615339345}
   m_Mesh: {fileID: 997602262961349003, guid: c6015365270954d13ba4c93a2a912640, type: 3}
---- !u!23 &6600123757040978892
+--- !u!23 &8816828352799768238
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3472395177841086557}
+  m_GameObject: {fileID: 866464306615339345}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -129,7 +98,7 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!1 &3502193952852547453
+--- !u!1 &1632363269460364017
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -137,7 +106,38 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 2846747528760838108}
+  - component: {fileID: 9185250798609186083}
+  m_Layer: 0
+  m_Name: Muzzle
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9185250798609186083
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1632363269460364017}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 1.809577, z: 1.0404472}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 3204980775199563457}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &2965531692474024003
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1997930994869359600}
   m_Layer: 0
   m_Name: AimPoint
   m_TagString: Untagged
@@ -145,22 +145,22 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &2846747528760838108
+--- !u!4 &1997930994869359600
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3502193952852547453}
+  m_GameObject: {fileID: 2965531692474024003}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 1.551066, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 7775047931370548617}
+  m_Father: {fileID: 3204980775199563457}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &6614905720816071923
+--- !u!1 &5446931588703112215
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -168,14 +168,46 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7775047931370548617}
-  - component: {fileID: 8207380271605566844}
-  - component: {fileID: 470400886192787489}
-  - component: {fileID: 6480243425492805603}
-  - component: {fileID: 8444243202606571816}
-  - component: {fileID: 2450905046737540795}
-  - component: {fileID: 2014906414607189634}
-  - component: {fileID: 5945812033359410543}
+  - component: {fileID: 3006079193453360237}
+  m_Layer: 0
+  m_Name: Model
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3006079193453360237
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5446931588703112215}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 5.071638, y: 5.071638, z: 5.071638}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2492713763663623253}
+  m_Father: {fileID: 3204980775199563457}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &6347793050455571405
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3204980775199563457}
+  - component: {fileID: 3343989928048553356}
+  - component: {fileID: 3340602883943217219}
+  - component: {fileID: 5114937692145860837}
+  - component: {fileID: 5993014731553704867}
+  - component: {fileID: 5068395483516597649}
+  - component: {fileID: 3506527219068569160}
+  - component: {fileID: 1513231854641898646}
   m_Layer: 7
   m_Name: Tank
   m_TagString: Vehicle
@@ -183,31 +215,31 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &7775047931370548617
+--- !u!4 &3204980775199563457
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6614905720816071923}
+  m_GameObject: {fileID: 6347793050455571405}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 4684966812973029180}
-  - {fileID: 2846747528760838108}
-  - {fileID: 7440112368008008148}
+  - {fileID: 3006079193453360237}
+  - {fileID: 1997930994869359600}
+  - {fileID: 9185250798609186083}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!65 &8207380271605566844
+--- !u!65 &3343989928048553356
 BoxCollider:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6614905720816071923}
+  m_GameObject: {fileID: 6347793050455571405}
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -222,13 +254,13 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 7.5999994, y: 2.58511, z: 4.161789}
   m_Center: {x: 0, y: 1.292555, z: 0}
---- !u!54 &470400886192787489
+--- !u!54 &3340602883943217219
 Rigidbody:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6614905720816071923}
+  m_GameObject: {fileID: 6347793050455571405}
   serializedVersion: 5
   m_Mass: 45000
   m_LinearDamping: 0
@@ -249,13 +281,13 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 0
   m_CollisionDetection: 0
---- !u!114 &6480243425492805603
+--- !u!114 &5114937692145860837
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6614905720816071923}
+  m_GameObject: {fileID: 6347793050455571405}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: efb401dd34e4544d286341695512cfd6, type: 3}
@@ -264,30 +296,30 @@ MonoBehaviour:
   maxHealth: 900
   armor: 60
   explosiveArmorPierce: 0.85
---- !u!114 &8444243202606571816
+--- !u!114 &5993014731553704867
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6614905720816071923}
+  m_GameObject: {fileID: 6347793050455571405}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2c774b5206ea64508a9e7e8fabf6c252, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Ironfield.Runtime::Ironfield.Vehicles.Vehicle
   vehicleClass: 0
-  aimPoint: {fileID: 2846747528760838108}
-  displayName: Main battle tank
+  aimPoint: {fileID: 1997930994869359600}
+  displayName: vehicle.tank
   highValue: 0
   optional: 0
---- !u!114 &2450905046737540795
+--- !u!114 &5068395483516597649
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6614905720816071923}
+  m_GameObject: {fileID: 6347793050455571405}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b68774babc7244a2d8dc5cddb93fcec8, type: 3}
@@ -301,33 +333,33 @@ MonoBehaviour:
   followGap: 9
   haltOnAllyLostSeconds: 1.5
   panicSpeedMultiplier: 1.7
---- !u!114 &2014906414607189634
+--- !u!114 &3506527219068569160
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6614905720816071923}
+  m_GameObject: {fileID: 6347793050455571405}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b3bd08b5f4f3d49afa414bd3f8e89a3b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Ironfield.Runtime::Ironfield.Vehicles.Wreck
-  intactVisual: {fileID: 7884189569064594141}
+  intactVisual: {fileID: 5446931588703112215}
   wreckedVisual: {fileID: 0}
-  fireSmokePrefab: {fileID: 5255208323680455523, guid: ca33362589f1945eb80f86a1e6cb6eef, type: 3}
+  fireSmokePrefab: {fileID: 6432576581792047737, guid: ca33362589f1945eb80f86a1e6cb6eef, type: 3}
   fireLocalOffset: {x: 0, y: 1.292555, z: 0}
   debris: []
   debrisImpulse: 6
   destroyedSfx: {fileID: 8300000, guid: e109de7be83fc42c79e9d6002ff96b8e, type: 3}
   charInPlace: 1
---- !u!114 &5945812033359410543
+--- !u!114 &1513231854641898646
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6614905720816071923}
+  m_GameObject: {fileID: 6347793050455571405}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a26cb77b2f0b54c1fbf92d754d9dc938, type: 3}
@@ -335,8 +367,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Ironfield.Runtime::Ironfield.Vehicles.VehicleTurret
   yaw: {fileID: 0}
   pitch: {fileID: 0}
-  muzzle: {fileID: 7440112368008008148}
-  tracerPrefab: {fileID: 2516623634785890076, guid: 57a52b3d7b30e42349b2f56628b85872, type: 3}
+  muzzle: {fileID: 9185250798609186083}
+  tracerPrefab: {fileID: 5218427037076704474, guid: 57a52b3d7b30e42349b2f56628b85872, type: 3}
   range: 190
   traverseDeg: 90
   fireInterval: 0.16
@@ -344,35 +376,3 @@ MonoBehaviour:
   burstPause: 1.7
   spreadDeg: 3.2
   damagePerHit: 7
---- !u!1 &7884189569064594141
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 4684966812973029180}
-  m_Layer: 0
-  m_Name: Model
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &4684966812973029180
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7884189569064594141}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 5.071638, y: 5.071638, z: 5.071638}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 2691806039030889844}
-  m_Father: {fileID: 7775047931370548617}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

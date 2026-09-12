@@ -4,8 +4,9 @@
 可选支线目标/地标),IMGUI 主菜单/HUD,两种无人机(轻型/重型,打通
 Mission01 解锁重型)、四种载具(坦克/IFV/卡车/自行高炮)、关卡进度存档,
 音频接了部分真实 CC0 录音,**已迁移到 URP**(Volume 后处理调色代替了旧的
-Built-in 自定义 shader)。可玩、可通关/失败,内容量比早期的单关竖切片厚
-不少,上架准备(P3)还没做。
+Built-in 自定义 shader),**支持 7 种语言**(英/法/日/德/西 + 简繁中文,默认
+英语)。可玩、可通关/失败,内容量比早期的单关竖切片厚不少,已经在准备
+itch.io 上架(P3,进行中)。
 
 下面按"能不能发布"划分四个阶段。P0 是把当前这一关做扎实到能放到 itch.io 上
 让陌生人玩不懵、不出戏;P1 让它像个游戏而不是一关;P2/P3 是打磨与上架。
@@ -382,3 +383,43 @@ EditMode 单测(解锁链、最佳成绩、胜负不同结果)。EditMode 14/14�
    bonus target 不会结束任务且正确记进 `BonusKilled`、验证 Mission02 的
    SPAAG 开火间隔确实比 IFV 快。EditMode 14/14、PlayMode 17/17
    (14 + 3 条新增)。
+
+## 阶段外补充:多语言本地化(2026-09-12,用户直接提出)
+
+用户原话:"游戏要改成支持英语、法语、日语、德语、西班牙语以及简体中文和繁体
+中文，默认语言是英语"。上架前才想起这件事,补上了。
+
+- 新增 `Ironfield.Core.Loc`——项目里没有 CSV/JSON 导入管线(跟这个项目
+  "所有东西都是代码生成"的一贯做法一致,无头环境搭一套外部数据导入也没有
+  交互式会话去调试),就用一个 `Dictionary<string, string[]>` 存翻译表,
+  数组下标对应 `Language` 枚举顺序(en/fr/ja/de/es/简/繁)。`Loc.Get(key)`
+  按 `GameSettings.Language` 取对应语言,缺失或空字符串自动回退英语;传入
+  一个不存在的 key 直接把 key 本身显示出来(方便一眼看出漏翻的地方,不会
+  静默显示空白)。
+- `GameSettings.Language`(PlayerPrefs 持久化,默认 `Language.English`——
+  按用户要求,不跟系统语言自动检测挂钩)+ 设置面板新增"Language"一行,
+  点击在 7 种语言间循环切换,语言名本身固定显示成"English/Français/
+  日本語/Deutsch/Español/简体中文/繁體中文"这种各语言自己的说法(不经过
+  `Loc.Get` 翻译)——这样不管当前界面是哪种语言,玩家都找得到自己那行。
+- **改了全部 5 个 IMGUI 界面文件**(`MainMenuController`/`SettingsGUI`/
+  `PauseMenu`/`FirstRunTip`/`HudController`)——菜单/设置/暂停/操作说明/
+  出击须知/HUD 状态栏/瞄准提示/结算面板,一处硬编码字符串都没留。
+  `MissionCatalog.DisplayName` 和 `Vehicle.displayName`(载具锁定框显示的
+  名字)也从字面文本改成存 Loc key,在绘制那一刻才 `Loc.Get()`——`Vehicle.
+  displayName` 是 `IronfieldSetup.cs` 无头预烘焙进 prefab 的,如果直接存
+  翻译好的文本,运行时切语言根本改不动已经烘焙进场景的字符串,必须存 key。
+- 新增 `LocTests.cs`(5 条 EditMode,核心是一条"翻译表里每个 key 的 7 种
+  语言都不能有空/缺项"的完整性检查——不然某个 key 漏翻一种语言会一直静默
+  回退英语,没有任何信号提醒去补)+ `LocIntegrationTests.cs`(1 条
+  PlayMode:加载 Mission03,断言场上每个载具的 `displayName` 都能在 Loc
+  表里查到真实译文,不是原样把 key 显示出来——防止 `IronfieldSetup.cs` 烘焙
+  的 key 字符串和 `Loc.cs` 定义的 key 对不上而两边都不报错的哑巴问题)。
+- **实机验证**(不是无头截图——IMGUI 内容走不了 `Camera.Render()` 那条无头
+  截图管线,这个盲区在 UI 缩放那次就记过一次):真的 `open` 了构建出来的
+  .app,用 computer-use 截了英/法/日/简中/繁中五种语言的设置面板和主菜单,
+  全部正确渲染,日文假名/汉字、繁简中文都没有缺字型/方框。发现一个真实的
+  排版问题——法语/德语翻译比原文长,无人机选择卡片(原来 210px 宽)在法语
+  下"Dégâts élevés"这行被裁切,加宽到 260px 修复。其它按钮/面板宽度没有
+  逐个用超长语言字符串再核对一遍(时间成本高),如果之后发现某处被裁切,
+  同样的加宽思路照抄。
+- EditMode 21/21(16 + 5 条新增)、PlayMode 22/22(21 + 1 条新增)。

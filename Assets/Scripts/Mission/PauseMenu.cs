@@ -96,16 +96,16 @@ namespace Ironfield.Mission
             GUI.DrawTexture(new Rect(0, 0, w, h), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            GUI.Label(new Rect(0, h * 0.26f, w, 40), "已暂停", _title);
+            GUI.Label(new Rect(0, h * 0.26f, w, 40), Loc.Get("pause.title"), _title);
 
             float bw = 220, bh = 44, gap = bh + 10;
             float bx = w * 0.5f - bw * 0.5f, by = h * 0.38f;
-            if (UiSfx.Button(new Rect(bx, by, bw, bh), "继续", _btn)) SetPaused(false);
-            if (UiSfx.Button(new Rect(bx, by + gap, bw, bh), "操作说明", _btn)) _showControls = true;
-            if (UiSfx.Button(new Rect(bx, by + gap * 2, bw, bh), "设置", _btn)) _showSettings = true;
-            if (UiSfx.Button(new Rect(bx, by + gap * 3, bw, bh), "重新开始", _btn))
+            if (UiSfx.Button(new Rect(bx, by, bw, bh), Loc.Get("pause.resume"), _btn)) SetPaused(false);
+            if (UiSfx.Button(new Rect(bx, by + gap, bw, bh), Loc.Get("pause.controls"), _btn)) _showControls = true;
+            if (UiSfx.Button(new Rect(bx, by + gap * 2, bw, bh), Loc.Get("menu.settings"), _btn)) _showSettings = true;
+            if (UiSfx.Button(new Rect(bx, by + gap * 3, bw, bh), Loc.Get("pause.restart"), _btn))
             { SetPaused(false); SceneFlow.RestartCurrent(); }
-            if (UiSfx.Button(new Rect(bx, by + gap * 4, bw, bh), "返回主菜单", _btn))
+            if (UiSfx.Button(new Rect(bx, by + gap * 4, bw, bh), Loc.Get("pause.main_menu"), _btn))
             { SetPaused(false); SceneFlow.LoadMainMenu(); }
         }
 
@@ -116,41 +116,31 @@ namespace Ironfield.Mission
             GUI.color = Color.white;
 
             float pw = 480, ph = 300, px = w * 0.5f - pw * 0.5f, py = h * 0.5f - ph * 0.5f;
-            GUI.Box(new Rect(px, py, pw, ph), "操作说明", _boxTitle);
+            GUI.Box(new Rect(px, py, pw, ph), Loc.Get("pause.controls"), _boxTitle);
             foreach (var (i, s) in ControlLines())
                 GUI.Label(new Rect(px + 22, py + 42 + i * 24, pw - 44, 22), s, _line);
 
-            if (UiSfx.Button(new Rect(px + pw * 0.5f - 60, py + ph - 46, 120, 34), "返回"))
+            if (UiSfx.Button(new Rect(px + pw * 0.5f - 60, py + ph - 46, 120, 34), Loc.Get("common.back")))
                 _showControls = false;
         }
 
-        static readonly string[] MouseKbLines =
+        static readonly string[] MouseKbKeys =
         {
-            "鼠标移动     瞄准 / 转向 —— 无人机朝你指的方向飞",
-            "左键         引爆战斗部",
-            "右键(按住)   精瞄(拉近 + 减速瞄准)",
-            "W / S        油门 / 刹车        Shift  加速",
-            "空格 / Ctrl  升降微调",
-            "Q / E        横滚               R      呼回",
-            "Esc          暂停 / 继续",
+            "ctrl.mkb.aim", "ctrl.mkb.fire", "ctrl.mkb.precision",
+            "ctrl.mkb.throttle", "ctrl.mkb.trim", "ctrl.mkb.roll", "ctrl.pause",
         };
-        static readonly string[] GamepadLines =
+        static readonly string[] GamepadKeys =
         {
-            "右摇杆       瞄准 / 转向 —— 无人机朝你指的方向飞",
-            "A / RB       引爆战斗部",
-            "左扳机(按住) 精瞄(拉近 + 减速瞄准)",
-            "左摇杆Y      油门 / 刹车        右扳机  加速",
-            "RB / LB      升降微调",
-            "左摇杆X      横滚               Y       呼回",
-            "Esc          暂停 / 继续",
+            "ctrl.pad.aim", "ctrl.pad.fire", "ctrl.pad.precision",
+            "ctrl.pad.throttle", "ctrl.pad.trim", "ctrl.pad.roll", "ctrl.pause",
         };
 
         /// <summary>Mouse+keyboard lines, or gamepad lines if that's what the
         /// player was last actually using (Ironfield.Drone.DroneInput tracks it).</summary>
         internal static System.Collections.Generic.IEnumerable<(int, string)> ControlLines()
         {
-            string[] lines = Ironfield.Drone.DroneInput.LastWasGamepad ? GamepadLines : MouseKbLines;
-            for (int i = 0; i < lines.Length; i++) yield return (i, lines[i]);
+            string[] keys = Ironfield.Drone.DroneInput.LastWasGamepad ? GamepadKeys : MouseKbKeys;
+            for (int i = 0; i < keys.Length; i++) yield return (i, Loc.Get(keys[i]));
         }
     }
 }

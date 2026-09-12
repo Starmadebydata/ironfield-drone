@@ -1011,12 +1011,15 @@ namespace Ironfield.EditorTools
 
             var v = root.AddComponent<Vehicle>();
             v.vehicleClass = cls;
+            // A Loc key, not literal text — HudController resolves it via
+            // Loc.Get(tgt.displayName) at draw time, so it re-localizes
+            // without needing a rebuild.
             v.displayName = cls switch
             {
-                VehicleClass.Tank => "Main battle tank",
-                VehicleClass.IFV => "Infantry fighting vehicle",
-                VehicleClass.SPAAG => "Self-propelled AA gun",
-                _ => "Supply truck",
+                VehicleClass.Tank => "vehicle.tank",
+                VehicleClass.IFV => "vehicle.ifv",
+                VehicleClass.SPAAG => "vehicle.spaag",
+                _ => "vehicle.truck",
             };
             var aim = new GameObject("AimPoint");
             aim.transform.SetParent(root.transform, false);
@@ -1282,7 +1285,7 @@ namespace Ironfield.EditorTools
                 if (isHighValue)
                 {
                     vinst.highValue = true;
-                    vinst.displayName = "HQ COMMAND VEHICLE";
+                    vinst.displayName = "vehicle.hq";
                     MarkHighValue(vinst.transform);
                 }
             }
@@ -1536,7 +1539,7 @@ namespace Ironfield.EditorTools
 
             var v = root.AddComponent<Vehicle>();
             v.vehicleClass = VehicleClass.Truck;   // nearest bucket; unused for behaviour here
-            v.displayName = "Recon relay outpost";
+            v.displayName = "vehicle.outpost";
             v.optional = true;
             var aim = new GameObject("AimPoint");
             aim.transform.SetParent(root.transform, false);

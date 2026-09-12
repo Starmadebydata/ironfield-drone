@@ -22,6 +22,7 @@ namespace Ironfield.Core
         const string KAutoAttack = "ironfield.autoattack";
         const string KSelectedDrone = "ironfield.selecteddrone";
         const string KUiScale = "ironfield.a11y.uiscale";
+        const string KLanguage = "ironfield.language";
 
         public static float MasterVolume { get; private set; } = 1f;
         public static float SfxVolume { get; private set; } = 1f;
@@ -46,6 +47,9 @@ namespace Ironfield.Core
         /// <summary>Scales every IMGUI screen (menus/HUD/pause) around screen
         /// centre — see Ironfield.UI.UiScaling. 1 = default size.</summary>
         public static float UiScale { get; private set; } = 1f;
+        /// <summary>UI language — defaults to English regardless of system
+        /// locale (the user's explicit call, not auto-detected).</summary>
+        public static Language Language { get; private set; } = Language.English;
 
         static bool _loaded;
 
@@ -64,6 +68,7 @@ namespace Ironfield.Core
             AutoAttack = PlayerPrefs.GetInt(KAutoAttack, 0) != 0;
             SelectedDrone = PlayerPrefs.GetInt(KSelectedDrone, 0);
             UiScale = PlayerPrefs.GetFloat(KUiScale, 1f);
+            Language = (Language)PlayerPrefs.GetInt(KLanguage, (int)Language.English);
             Apply();
         }
 
@@ -78,6 +83,7 @@ namespace Ironfield.Core
         public static void SetAutoAttack(bool v) { AutoAttack = v; Save(); }
         public static void SetSelectedDrone(int v) { SelectedDrone = Mathf.Clamp(v, 0, 1); Save(); }
         public static void SetUiScale(float v) { UiScale = Mathf.Clamp(v, 0.8f, 1.4f); Save(); }
+        public static void SetLanguage(Language v) { Language = v; Save(); }
 
         static void Apply()
         {
@@ -99,6 +105,7 @@ namespace Ironfield.Core
             PlayerPrefs.SetInt(KAutoAttack, AutoAttack ? 1 : 0);
             PlayerPrefs.SetInt(KSelectedDrone, SelectedDrone);
             PlayerPrefs.SetFloat(KUiScale, UiScale);
+            PlayerPrefs.SetInt(KLanguage, (int)Language);
             PlayerPrefs.Save();
         }
 

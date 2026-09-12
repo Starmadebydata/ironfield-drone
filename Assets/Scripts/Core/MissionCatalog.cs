@@ -7,6 +7,9 @@ namespace Ironfield.Core
     public readonly struct MissionEntry
     {
         public readonly string Id;
+        /// <summary>A Loc key, not the literal display text — call
+        /// Loc.Get(DisplayName) at draw time, not GUI.Label(DisplayName, ...)
+        /// directly, or a language switch won't reach this string.</summary>
         public readonly string DisplayName;
         public readonly string SceneName;
 
@@ -22,9 +25,9 @@ namespace Ironfield.Core
     {
         public static readonly MissionEntry[] All =
         {
-            new("m01", "01 · 侦察脊线",   "Mission01"),
-            new("m02", "02 · 公路殉道",   "Mission02"),
-            new("m03", "03 · 指挥纵队",   "Mission03"),
+            new("m01", "mission.m01.name", "Mission01"),
+            new("m02", "mission.m02.name", "Mission02"),
+            new("m03", "mission.m03.name", "Mission03"),
         };
 
         public static int IndexOf(string missionId)

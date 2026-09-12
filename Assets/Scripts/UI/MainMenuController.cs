@@ -83,21 +83,19 @@ namespace Ironfield.UI
             }
 
             GUI.Label(new Rect(0, h * 0.16f, w, 60), "IRONFIELD", _title);
-            GUI.Label(new Rect(0, h * 0.16f + 56, w, 22),
-                "无人机突袭 · 一片虚构的东欧战线", _subtitle);
+            GUI.Label(new Rect(0, h * 0.16f + 56, w, 22), Loc.Get("menu.subtitle"), _subtitle);
 
             float bw = 240, bh = 48, bx = w * 0.5f - bw * 0.5f, by = h * 0.42f, gap = bh + 14;
-            if (UiSfx.Button(new Rect(bx, by, bw, bh), "开始任务", _btn))
+            if (UiSfx.Button(new Rect(bx, by, bw, bh), Loc.Get("menu.start"), _btn))
                 _panel = Panel.Missions;
-            if (UiSfx.Button(new Rect(bx, by + gap, bw, bh), "设置", _btn))
+            if (UiSfx.Button(new Rect(bx, by + gap, bw, bh), Loc.Get("menu.settings"), _btn))
                 _panel = Panel.Settings;
-            if (UiSfx.Button(new Rect(bx, by + gap * 2, bw, bh), "制作人员", _btn))
+            if (UiSfx.Button(new Rect(bx, by + gap * 2, bw, bh), Loc.Get("menu.credits"), _btn))
                 _panel = Panel.Credits;
-            if (UiSfx.Button(new Rect(bx, by + gap * 3, bw, bh), "退出", _btn))
+            if (UiSfx.Button(new Rect(bx, by + gap * 3, bw, bh), Loc.Get("menu.quit"), _btn))
                 SceneFlow.Quit();
 
-            GUI.Label(new Rect(14, h - 20, 640, 18),
-                "prototype v0.1 — MIT licensed, third-party model credits in CREDITS.md", _footer);
+            GUI.Label(new Rect(14, h - 20, 640, 18), Loc.Get("menu.footer"), _footer);
         }
 
         /// <summary>Ships the CC-BY attributions with the build itself (not
@@ -105,43 +103,41 @@ namespace Ironfield.UI
         /// — required before distributing anywhere. CC0 assets are credited
         /// too, matching this project's convention, even though their license
         /// doesn't require it.</summary>
-        static readonly (string line, string license)[] CreditsEntries =
+        static readonly (string key, string license)[] CreditsEntries =
         {
-            ("无人机模型 \"Drone\" — NateGazzard (poly.pizza)", "CC-BY 3.0"),
-            ("坦克模型 \"Tank\" — Nico _ (poly.pizza)", "CC-BY 3.0"),
-            ("步兵战车模型 \"Super Tank\" — Zsky (poly.pizza)", "CC-BY 3.0"),
-            ("卡车模型 — Alex Safayan (poly.pizza)", "CC-BY 3.0"),
-            ("针叶树 / 枯树模型 — Danni Bittman (poly.pizza)", "CC-BY 3.0"),
-            ("阔叶树模型 \"Common Tree\" — Quaternius (poly.pizza)", "CC0"),
-            ("建筑模型 — Kenney / Quaternius (poly.pizza)", "CC0"),
-            ("音效 — Kenney.nl (Sci-fi / Impact / Interface Sounds)", "CC0"),
+            ("credits.drone", "CC-BY 3.0"),
+            ("credits.tank", "CC-BY 3.0"),
+            ("credits.ifv", "CC-BY 3.0"),
+            ("credits.truck", "CC-BY 3.0"),
+            ("credits.trees_by", "CC-BY 3.0"),
+            ("credits.broadleaf", "CC0"),
+            ("credits.buildings", "CC0"),
+            ("credits.sfx", "CC0"),
         };
 
         void DrawCredits(float w, float h)
         {
-            GUI.Label(new Rect(0, h * 0.08f, w, 34), "制作人员 · Credits", _sectionTitle);
-            GUI.Label(new Rect(0, h * 0.08f + 36, w, 20),
-                "第三方素材完整清单见仓库 CREDITS.md — Full attributions in CREDITS.md", _missionSub);
+            GUI.Label(new Rect(0, h * 0.08f, w, 34), Loc.Get("credits.title"), _sectionTitle);
+            GUI.Label(new Rect(0, h * 0.08f + 36, w, 20), Loc.Get("credits.subtitle"), _missionSub);
 
             float y = h * 0.08f + 68, cw = 620, cx = w * 0.5f - cw * 0.5f;
             for (int i = 0; i < CreditsEntries.Length; i++)
             {
-                var (line, license) = CreditsEntries[i];
-                GUI.Label(new Rect(cx, y, cw - 90, 22), line, _creditsLine);
+                var (key, license) = CreditsEntries[i];
+                GUI.Label(new Rect(cx, y, cw - 90, 22), Loc.Get(key), _creditsLine);
                 GUI.Label(new Rect(cx + cw - 90, y, 90, 22), license, _missionSub);
                 y += 26;
             }
 
-            GUI.Label(new Rect(cx, y + 10, cw, 20),
-                "全部地形/道路/植被散布/UI/游戏代码为本项目原创。", _missionSub);
+            GUI.Label(new Rect(cx, y + 10, cw, 20), Loc.Get("credits.original"), _missionSub);
 
-            if (UiSfx.Button(new Rect(w * 0.5f - 60, h - 70, 120, 34), "返回"))
+            if (UiSfx.Button(new Rect(w * 0.5f - 60, h - 70, 120, 34), Loc.Get("common.back")))
                 _panel = Panel.Title;
         }
 
         void DrawMissions(float w, float h)
         {
-            GUI.Label(new Rect(0, h * 0.08f, w, 34), "选择任务", _sectionTitle);
+            GUI.Label(new Rect(0, h * 0.08f, w, 34), Loc.Get("missions.title"), _sectionTitle);
 
             float droneY = h * 0.08f + 42;
             float droneH = DrawDronePicker(w, droneY);
@@ -163,16 +159,17 @@ namespace Ironfield.UI
                     SceneFlow.LoadMissionByName(e.SceneName);
                 GUI.enabled = true;
 
-                string name = unlocked ? e.DisplayName : $"{e.DisplayName}  🔒";
+                string displayName = Loc.Get(e.DisplayName);
+                string name = unlocked ? displayName : $"{displayName}  🔒";
                 GUI.Label(new Rect(r.x + 18, r.y + 10, r.width - 36, 24), name, _missionName);
-                string sub = !unlocked ? "先打通上一关解锁"
-                    : best != null ? $"最佳评分 {best.Value.score}    评级 {best.Value.grade}"
-                    : "尚未通关";
+                string sub = !unlocked ? Loc.Get("missions.locked_hint")
+                    : best != null ? Loc.Get("missions.best_score", best.Value.score, best.Value.grade)
+                    : Loc.Get("missions.not_cleared");
                 GUI.Label(new Rect(r.x + 18, r.y + 36, r.width - 36, 20), sub, _missionSub);
             }
 
             float backY = cy + entries.Length * (ch + gap) + 8;
-            if (UiSfx.Button(new Rect(w * 0.5f - 60, backY, 120, 34), "返回"))
+            if (UiSfx.Button(new Rect(w * 0.5f - 60, backY, 120, 34), Loc.Get("common.back")))
                 _panel = Panel.Title;
         }
 
@@ -181,14 +178,18 @@ namespace Ironfield.UI
         /// height so the caller can lay out what comes after it.</summary>
         float DrawDronePicker(float w, float y)
         {
-            const float dw = 210, dh = 54, dgap = 16;
+            // widened from 210 — French/German/Spanish translations of the
+            // heavy-drone subtitle ran longer than the original Chinese/
+            // English and were clipping at 210.
+            const float dw = 260, dh = 54, dgap = 16;
             float startX = w * 0.5f - (dw * 2 + dgap) * 0.5f;
             bool heavyUnlocked = CampaignProgress.IsUnlocked(1);
 
             DrawDroneOption(new Rect(startX, y, dw, dh), 0,
-                "轻型无人机", "标准 · 敏捷", true);
+                Loc.Get("drone.light.name"), Loc.Get("drone.light.sub"), true);
             DrawDroneOption(new Rect(startX + dw + dgap, y, dw, dh), 1,
-                "重型无人机", heavyUnlocked ? "重装甲 · 高伤害 · 较慢" : "打通任务01解锁", heavyUnlocked);
+                Loc.Get("drone.heavy.name"),
+                heavyUnlocked ? Loc.Get("drone.heavy.sub") : Loc.Get("drone.heavy.locked"), heavyUnlocked);
 
             return dh;
         }

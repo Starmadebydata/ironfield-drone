@@ -7,7 +7,7 @@ namespace Ironfield.Mission
     /// <summary>
     /// Forces a short controls tip in front of a first-time player before the
     /// mission gets going, shown once ever via PlayerPrefs and skippable with a
-    /// button. Reachable again any time from the pause menu's "操作说明". IMGUI,
+    /// button. Reachable again any time from the pause menu's "Controls". IMGUI,
     /// matching HudController.
     ///
     /// Deliberately does NOT freeze Time.timeScale (unlike PauseMenu) — this runs
@@ -73,11 +73,11 @@ namespace Ironfield.Mission
             GUI.color = Color.white;
 
             float pw = 520, ph = 300, px = w * 0.5f - pw * 0.5f, py = h * 0.5f - ph * 0.5f;
-            GUI.Label(new Rect(px, py, pw, 34), "出击须知", _title);
+            GUI.Label(new Rect(px, py, pw, 34), Loc.Get("briefing.title"), _title);
             foreach (var (i, s) in PauseMenu.ControlLines())
                 GUI.Label(new Rect(px, py + 44 + i * 26, pw, 24), s, _line);
 
-            if (UiSfx.Button(new Rect(px + pw * 0.5f - 70, py + ph - 50, 140, 40), "开始出击", _btn))
+            if (UiSfx.Button(new Rect(px + pw * 0.5f - 70, py + ph - 50, 140, 40), Loc.Get("briefing.launch"), _btn))
                 Dismiss();
         }
 

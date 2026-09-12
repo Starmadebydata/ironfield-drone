@@ -93,9 +93,9 @@ namespace Ironfield.Mission
         {
             _killBanner = 2.2f;
             _killText = v != null && v.optional
-                ? $"BONUS TARGET DESTROYED  {mission.BonusKilled}/{mission.BonusTotal}"
-                : "TARGET DESTROYED  " +
-                  $"{mission.VehiclesTotal - mission.VehiclesLeft}/{mission.VehiclesTotal}";
+                ? Loc.Get("hud.bonus_destroyed", mission.BonusKilled, mission.BonusTotal)
+                : Loc.Get("hud.target_destroyed",
+                    mission.VehiclesTotal - mission.VehiclesLeft, mission.VehiclesTotal);
             _hitMarker = 0.3f;
             _hitWasKill = true;
             PlayPing(1.4f);
@@ -143,37 +143,38 @@ namespace Ironfield.Mission
 
             // --- top-left status --------------------------------------
             GUI.Label(new Rect(24, 18, 520, 24),
-                $"COLUMN   {mission.Killed}/{mission.VehiclesTotal} destroyed", _label);
-            string droneType = GameSettings.SelectedDrone == 1 ? "重型" : "轻型";
-            GUI.Label(new Rect(24, 42, 520, 24), $"DRONES   {mission.DronesLeft}   ({droneType})", _label);
+                Loc.Get("hud.column", mission.Killed, mission.VehiclesTotal), _label);
+            string droneType = GameSettings.SelectedDrone == 1
+                ? Loc.Get("drone.heavy.short") : Loc.Get("drone.light.short");
+            GUI.Label(new Rect(24, 42, 520, 24), Loc.Get("hud.drones", mission.DronesLeft, droneType), _label);
             float statusY = 66f;
             if (mission.BonusTotal > 0)
             {
                 var bonus = new GUIStyle(_label) { fontSize = 12 };
                 bonus.normal.textColor = new Color(0.75f, 0.85f, 1f);
                 GUI.Label(new Rect(24, statusY, 520, 20),
-                    $"BONUS   {mission.BonusKilled}/{mission.BonusTotal}", bonus);
+                    Loc.Get("hud.bonus", mission.BonusKilled, mission.BonusTotal), bonus);
                 statusY += 20f;
             }
             if (mission.Escaped > 0)
             {
                 var warn = new GUIStyle(_label);
                 warn.normal.textColor = new Color(1f, 0.5f, 0.25f);
-                GUI.Label(new Rect(24, statusY, 520, 24), $"BROKE THROUGH   {mission.Escaped}", warn);
+                GUI.Label(new Rect(24, statusY, 520, 24), Loc.Get("hud.broke_through", mission.Escaped), warn);
             }
 
             var drone = mission.ActiveDrone;
             if (drone != null)
             {
                 GUI.Label(new Rect(24, h - 66, 320, 22), $"{drone.Speed * 3.6f:0} km/h", _label);
-                GUI.Label(new Rect(24, h - 44, 320, 22), $"ALT {drone.transform.position.y:0} m", _small);
+                GUI.Label(new Rect(24, h - 44, 320, 22), Loc.Get("hud.alt", Mathf.RoundToInt(drone.transform.position.y)), _small);
 
                 if (drone.IsNearBoundary)
                 {
                     var bw = new GUIStyle(_center) { fontSize = 20, fontStyle = FontStyle.Bold };
                     float pulse = 0.65f + 0.35f * Mathf.Sin(Time.time * 6f);
                     bw.normal.textColor = new Color(1f, 0.55f, 0.2f, pulse);
-                    GUI.Label(new Rect(0, h * 0.10f, w, 30), "⚠ 返回战斗区域 · LEAVING COMBAT AREA", bw);
+                    GUI.Label(new Rect(0, h * 0.10f, w, 30), Loc.Get("hud.boundary_warning"), bw);
                 }
             }
 
@@ -185,29 +186,19 @@ namespace Ironfield.Mission
                     : Mathf.Clamp01(Mathf.Min(mission.TimeActive, 14f - mission.TimeActive) / 2f);
                 var hs = new GUIStyle(_small);
                 var hc = hs.normal.textColor; hc.a = fade; hs.normal.textColor = hc;
-                string[] keys = DroneInput.LastWasGamepad
+                string[] keyKeys = DroneInput.LastWasGamepad
                     ? new[]
                     {
-                        "R-STICK   aim / steer — the drone flies where you point",
-                        "A / RB    detonate warhead",
-                        "L-TRIGGER precision (zoom + slow aim)",
-                        "L-STICK Y throttle / brake   R-TRIGGER  boost",
-                        "RB / LB   climb / descend trim",
-                        "L-STICK X roll    Y   recall",
-                        "(hold H for controls)",
+                        "ctrl.pad.aim", "ctrl.pad.fire", "ctrl.pad.precision",
+                        "ctrl.pad.throttle", "ctrl.pad.trim", "ctrl.pad.roll", "ctrl.hint_hold_h",
                     }
                     : new[]
                     {
-                        "MOUSE   aim / steer — the drone flies where you point",
-                        "LMB     detonate warhead",
-                        "RMB     precision (zoom + slow aim)",
-                        "W / S   throttle / brake     SHIFT   boost",
-                        "SPACE / CTRL   climb / descend trim",
-                        "Q / E   roll     R   recall",
-                        "(hold H for controls)",
+                        "ctrl.mkb.aim", "ctrl.mkb.fire", "ctrl.mkb.precision",
+                        "ctrl.mkb.throttle", "ctrl.mkb.trim", "ctrl.mkb.roll", "ctrl.hint_hold_h",
                     };
-                for (int i = 0; i < keys.Length; i++)
-                    GUI.Label(new Rect(w - 260, h - 24 - (keys.Length - i) * 16, 250, 16), keys[i], hs);
+                for (int i = 0; i < keyKeys.Length; i++)
+                    GUI.Label(new Rect(w - 260, h - 24 - (keyKeys.Length - i) * 16, 250, 16), Loc.Get(keyKeys[i]), hs);
             }
 
             // --- briefing (first seconds) ----------------------------
@@ -216,10 +207,8 @@ namespace Ironfield.Mission
                 float a = Mathf.Clamp01(Mathf.Min(mission.TimeActive, 6f - mission.TimeActive) / 1.2f);
                 var col = _center.normal.textColor; col.a = a;
                 var s = new GUIStyle(_center); s.normal.textColor = col;
-                GUI.Label(new Rect(0, h * 0.16f, w, 26),
-                    "RECON  ·  enemy armour column advancing up the road", s);
-                GUI.Label(new Rect(0, h * 0.16f + 26, w, 22),
-                    "Destroy every vehicle before they break through — mind the return fire", s);
+                GUI.Label(new Rect(0, h * 0.16f, w, 26), Loc.Get("hud.briefing.line1"), s);
+                GUI.Label(new Rect(0, h * 0.16f + 26, w, 22), Loc.Get("hud.briefing.line2"), s);
             }
 
             // --- target markers -------------------------------------
@@ -326,16 +315,16 @@ namespace Ironfield.Mission
                 GUI.color = Color.white;
             }
 
-            GUI.Label(new Rect(p.x + box + 4, p.y - box, 220, 20), tgt.displayName, _small);
+            GUI.Label(new Rect(p.x + box + 4, p.y - box, 220, 20), Loc.Get(tgt.displayName), _small);
             bool auto = mission.ActiveDrone != null && mission.ActiveDrone.AutopilotEngaged;
             if (auto)
             {
                 var autoStyle = new GUIStyle(_label);
                 autoStyle.normal.textColor = new Color(0.4f, 1f, 0.5f);
-                GUI.Label(new Rect(p.x - 42, p.y + box + 2, 140, 18), "AUTO-ATTACK", autoStyle);
+                GUI.Label(new Rect(p.x - 42, p.y + box + 2, 140, 18), Loc.Get("hud.auto_attack"), autoStyle);
             }
             else if (targeting.HasHardLock)
-                GUI.Label(new Rect(p.x - 18, p.y + box + 2, 80, 18), "LOCK", _label);
+                GUI.Label(new Rect(p.x - 18, p.y + box + 2, 80, 18), Loc.Get("hud.lock"), _label);
         }
 
         // ---- primitives -------------------------------------------------
@@ -458,20 +447,20 @@ namespace Ironfield.Mission
             GUI.color = Color.white;
 
             bool won = mission.State == MissionState.Won;
-            GUI.Label(new Rect(0, h * 0.24f, w, 44), won ? "COLUMN DESTROYED" : "MISSION FAILED", _big);
+            GUI.Label(new Rect(0, h * 0.24f, w, 44), Loc.Get(won ? "end.won" : "end.lost"), _big);
 
             int t = Mathf.RoundToInt(mission.TimeActive);
             var lineList = new List<string>
             {
-                $"Destroyed      {mission.Killed} / {mission.VehiclesTotal}",
-                $"Broke through  {mission.Escaped}",
+                Loc.Get("end.destroyed", mission.Killed, mission.VehiclesTotal),
+                Loc.Get("end.broke_through", mission.Escaped),
             };
             if (mission.BonusTotal > 0)
-                lineList.Add($"Bonus targets  {mission.BonusKilled} / {mission.BonusTotal}");
-            lineList.Add($"Drones used    {mission.droneStock - mission.DronesLeft} / {mission.droneStock}");
-            lineList.Add($"Time           {t / 60:0}:{t % 60:00}");
+                lineList.Add(Loc.Get("end.bonus_targets", mission.BonusKilled, mission.BonusTotal));
+            lineList.Add(Loc.Get("end.drones_used", mission.droneStock - mission.DronesLeft, mission.droneStock));
+            lineList.Add(Loc.Get("end.time", t / 60, $"{t % 60:00}"));
             lineList.Add("");
-            lineList.Add($"SCORE   {mission.Score}      GRADE   {mission.Grade}");
+            lineList.Add(Loc.Get("end.score_grade", mission.Score, mission.Grade));
             string[] lines = lineList.ToArray();
             for (int i = 0; i < lines.Length; i++)
                 GUI.Label(new Rect(0, h * 0.24f + 58 + i * 24, w, 22), lines[i], _center);
@@ -479,16 +468,16 @@ namespace Ironfield.Mission
             string next = won ? MissionCatalog.NextSceneName(mission.missionId) : null;
             if (next != null)
             {
-                if (UiSfx.Button(new Rect(w * 0.5f - 100, h * 0.60f, 200, 42), "Next Mission ▶"))
+                if (UiSfx.Button(new Rect(w * 0.5f - 100, h * 0.60f, 200, 42), Loc.Get("end.next_mission")))
                     SceneFlow.LoadMissionByName(next);
             }
 
             float row2 = won && next != null ? h * 0.60f + 52f : h * 0.62f;
-            if (UiSfx.Button(new Rect(w * 0.5f - 172, row2, 104, 40), "Restart"))
+            if (UiSfx.Button(new Rect(w * 0.5f - 172, row2, 104, 40), Loc.Get("end.restart")))
                 SceneFlow.RestartCurrent();
-            if (UiSfx.Button(new Rect(w * 0.5f - 60, row2, 120, 40), "Main Menu"))
+            if (UiSfx.Button(new Rect(w * 0.5f - 60, row2, 120, 40), Loc.Get("end.main_menu")))
                 SceneFlow.LoadMainMenu();
-            if (UiSfx.Button(new Rect(w * 0.5f + 68, row2, 104, 40), "Quit"))
+            if (UiSfx.Button(new Rect(w * 0.5f + 68, row2, 104, 40), Loc.Get("end.quit")))
                 SceneFlow.Quit();
         }
     }
