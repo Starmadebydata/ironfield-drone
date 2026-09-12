@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &749865692336525559
+--- !u!1 &492466722371352658
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,7 +8,7 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 8333501878202811458}
+  - component: {fileID: 2365068612918668933}
   m_Layer: 0
   m_Name: tree_broadleaf
   m_TagString: Untagged
@@ -16,23 +16,23 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &8333501878202811458
+--- !u!4 &2365068612918668933
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 749865692336525559}
+  m_GameObject: {fileID: 492466722371352658}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071067}
   m_LocalPosition: {x: -0.026674718, y: 0.04246103, z: 0.212229}
   m_LocalScale: {x: 100, y: 100, z: 100}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 3803570972253870890}
-  m_Father: {fileID: 7042445942279911817}
+  - {fileID: 3181716962435132671}
+  m_Father: {fileID: 8481670299272122046}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &7820683989573413292
+--- !u!1 &4913541523872456839
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -40,41 +40,9 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 7042445942279911817}
-  m_Layer: 0
-  m_Name: Foliage_Broadleaf
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &7042445942279911817
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7820683989573413292}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 3.2250752, y: 3.2250752, z: 3.2250752}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 8333501878202811458}
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &8863271264751973118
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 3803570972253870890}
-  - component: {fileID: 6413476802918729456}
-  - component: {fileID: 7380034366263940427}
+  - component: {fileID: 3181716962435132671}
+  - component: {fileID: 1013122464265098333}
+  - component: {fileID: 7286492215772740184}
   m_Layer: 0
   m_Name: CommonTree_1
   m_TagString: Untagged
@@ -82,36 +50,36 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &3803570972253870890
+--- !u!4 &3181716962435132671
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8863271264751973118}
+  m_GameObject: {fileID: 4913541523872456839}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071069, y: 0, z: 0, w: 0.7071067}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 100, y: 99.99999, z: 99.99999}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 8333501878202811458}
+  m_Father: {fileID: 2365068612918668933}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!33 &6413476802918729456
+--- !u!33 &1013122464265098333
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8863271264751973118}
+  m_GameObject: {fileID: 4913541523872456839}
   m_Mesh: {fileID: 5056284906809869241, guid: 3e631fc2b307a4f568915cb87e4aadd6, type: 3}
---- !u!23 &7380034366263940427
+--- !u!23 &7286492215772740184
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8863271264751973118}
+  m_GameObject: {fileID: 4913541523872456839}
   m_Enabled: 1
   m_CastShadows: 1
   m_ReceiveShadows: 1
@@ -155,3 +123,35 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &6362039791761742828
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 8481670299272122046}
+  m_Layer: 0
+  m_Name: Foliage_Broadleaf
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &8481670299272122046
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6362039791761742828}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 3.2250752, y: 3.2250752, z: 3.2250752}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2365068612918668933}
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

@@ -7,10 +7,10 @@ namespace Ironfield.UI
     /// see SettingsGUI for why.</summary>
     public class MainMenuController : MonoBehaviour
     {
-        enum Panel { Title, Missions, Settings }
+        enum Panel { Title, Missions, Settings, Credits }
         Panel _panel;
 
-        GUIStyle _title, _subtitle, _btn, _footer, _missionName, _missionSub, _sectionTitle;
+        GUIStyle _title, _subtitle, _btn, _footer, _missionName, _missionSub, _sectionTitle, _creditsLine;
 
         void Awake()
         {
@@ -30,6 +30,8 @@ namespace Ironfield.UI
 
         /// <summary>Demo/test hook: jump straight to the mission-select panel.</summary>
         public void DebugShowMissions() => _panel = Panel.Missions;
+        /// <summary>Test hook: jump straight to the credits panel.</summary>
+        public void DebugShowCredits() => _panel = Panel.Credits;
 
         void EnsureStyles()
         {
@@ -50,6 +52,8 @@ namespace Ironfield.UI
             _missionName.normal.textColor = Color.white;
             _missionSub = new GUIStyle(GUI.skin.label) { fontSize = 12 };
             _missionSub.normal.textColor = new Color(0.7f, 0.75f, 0.7f);
+            _creditsLine = new GUIStyle(GUI.skin.label) { fontSize = 13 };
+            _creditsLine.normal.textColor = new Color(0.82f, 0.85f, 0.82f);
         }
 
         void OnGUI()
@@ -73,22 +77,66 @@ namespace Ironfield.UI
                 case Panel.Missions:
                     DrawMissions(w, h);
                     return;
+                case Panel.Credits:
+                    DrawCredits(w, h);
+                    return;
             }
 
             GUI.Label(new Rect(0, h * 0.16f, w, 60), "IRONFIELD", _title);
             GUI.Label(new Rect(0, h * 0.16f + 56, w, 22),
                 "无人机突袭 · 一片虚构的东欧战线", _subtitle);
 
-            float bw = 240, bh = 48, bx = w * 0.5f - bw * 0.5f, by = h * 0.46f, gap = bh + 14;
+            float bw = 240, bh = 48, bx = w * 0.5f - bw * 0.5f, by = h * 0.42f, gap = bh + 14;
             if (UiSfx.Button(new Rect(bx, by, bw, bh), "开始任务", _btn))
                 _panel = Panel.Missions;
             if (UiSfx.Button(new Rect(bx, by + gap, bw, bh), "设置", _btn))
                 _panel = Panel.Settings;
-            if (UiSfx.Button(new Rect(bx, by + gap * 2, bw, bh), "退出", _btn))
+            if (UiSfx.Button(new Rect(bx, by + gap * 2, bw, bh), "制作人员", _btn))
+                _panel = Panel.Credits;
+            if (UiSfx.Button(new Rect(bx, by + gap * 3, bw, bh), "退出", _btn))
                 SceneFlow.Quit();
 
             GUI.Label(new Rect(14, h - 20, 640, 18),
                 "prototype v0.1 — MIT licensed, third-party model credits in CREDITS.md", _footer);
+        }
+
+        /// <summary>Ships the CC-BY attributions with the build itself (not
+        /// just the repo's CREDITS.md, which a downloaded build doesn't carry)
+        /// — required before distributing anywhere. CC0 assets are credited
+        /// too, matching this project's convention, even though their license
+        /// doesn't require it.</summary>
+        static readonly (string line, string license)[] CreditsEntries =
+        {
+            ("无人机模型 \"Drone\" — NateGazzard (poly.pizza)", "CC-BY 3.0"),
+            ("坦克模型 \"Tank\" — Nico _ (poly.pizza)", "CC-BY 3.0"),
+            ("步兵战车模型 \"Super Tank\" — Zsky (poly.pizza)", "CC-BY 3.0"),
+            ("卡车模型 — Alex Safayan (poly.pizza)", "CC-BY 3.0"),
+            ("针叶树 / 枯树模型 — Danni Bittman (poly.pizza)", "CC-BY 3.0"),
+            ("阔叶树模型 \"Common Tree\" — Quaternius (poly.pizza)", "CC0"),
+            ("建筑模型 — Kenney / Quaternius (poly.pizza)", "CC0"),
+            ("音效 — Kenney.nl (Sci-fi / Impact / Interface Sounds)", "CC0"),
+        };
+
+        void DrawCredits(float w, float h)
+        {
+            GUI.Label(new Rect(0, h * 0.08f, w, 34), "制作人员 · Credits", _sectionTitle);
+            GUI.Label(new Rect(0, h * 0.08f + 36, w, 20),
+                "第三方素材完整清单见仓库 CREDITS.md — Full attributions in CREDITS.md", _missionSub);
+
+            float y = h * 0.08f + 68, cw = 620, cx = w * 0.5f - cw * 0.5f;
+            for (int i = 0; i < CreditsEntries.Length; i++)
+            {
+                var (line, license) = CreditsEntries[i];
+                GUI.Label(new Rect(cx, y, cw - 90, 22), line, _creditsLine);
+                GUI.Label(new Rect(cx + cw - 90, y, 90, 22), license, _missionSub);
+                y += 26;
+            }
+
+            GUI.Label(new Rect(cx, y + 10, cw, 20),
+                "全部地形/道路/植被散布/UI/游戏代码为本项目原创。", _missionSub);
+
+            if (UiSfx.Button(new Rect(w * 0.5f - 60, h - 70, 120, 34), "返回"))
+                _panel = Panel.Title;
         }
 
         void DrawMissions(float w, float h)

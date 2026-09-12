@@ -328,6 +328,75 @@ namespace Ironfield.EditorTools
                     + $"{report.summary.totalSize / 1024 / 1024} MB -> {outDir}/Ironfield.app");
         }
 
+        /// <summary>Distribution build for itch.io (P3 item 1) — optimized,
+        /// no Development flag/profiler/debugging, this machine's own platform
+        /// (macOS) since that's the only one buildable without extra platform
+        /// modules installed. Zip Builds/Release/Ironfield.app yourself before
+        /// uploading — itch.io wants a .zip, not a raw .app.
+        ///   Unity -batchmode -quit -executeMethod Ironfield.EditorTools.IronfieldSetup.BuildRelease
+        /// </summary>
+        [MenuItem("Ironfield/A. Build Release (itch.io)")]
+        public static void BuildRelease()
+        {
+            PlayerSettings.bundleVersion = "0.1.0";
+            PlayerSettings.applicationIdentifier = "com.northfallgames.ironfield";
+            var icon = BuildIcon();
+            if (icon != null)
+                PlayerSettings.SetIconsForTargetGroup(BuildTargetGroup.Standalone, new[] { icon });
+
+            string outDir = "Builds/Release";
+            Directory.CreateDirectory(outDir);
+            var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = scenes,
+                locationPathName = outDir + "/Ironfield.app",
+                target = BuildTarget.StandaloneOSX,
+                options = BuildOptions.None,
+            });
+            Debug.Log($"[Ironfield] Release build: {report.summary.result}, "
+                    + $"{report.summary.totalErrors} errors, {report.summary.totalWarnings} warnings, "
+                    + $"{report.summary.totalSize / 1024 / 1024} MB -> {outDir}/Ironfield.app");
+        }
+
+        /// <summary>Square app icon rendered from an in-scene shot of the drone
+        /// (same camera/lighting rig as the store screenshots) rather than a
+        /// hand-drawn asset — consistent with this project's "everything is
+        /// generated, nothing hand-authored in the Inspector" pipeline.</summary>
+        static Texture2D BuildIcon()
+        {
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var launch = GameObject.Find("LaunchPoint");
+            var cam = Camera.main;
+            var dronePf = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Drone_Heavy.prefab");
+            Texture2D icon = null;
+            if (cam != null && launch != null && dronePf != null)
+            {
+                var d = (GameObject)PrefabUtility.InstantiatePrefab(dronePf);
+                d.transform.position = launch.transform.position;
+                d.transform.rotation = launch.transform.rotation;
+                Vector3 eye = d.transform.position + -launch.transform.forward * 5.5f
+                              + Vector3.up * 2.6f;
+                cam.transform.position = eye;
+                cam.transform.rotation = Quaternion.LookRotation(
+                    d.transform.position + Vector3.up * 0.6f - eye, Vector3.up);
+                int s = 512;
+                var rt = new RenderTexture(s, s, 24);
+                cam.targetTexture = rt;
+                cam.Render();
+                RenderTexture.active = rt;
+                icon = new Texture2D(s, s, TextureFormat.RGBA32, false);
+                icon.ReadPixels(new Rect(0, 0, s, s), 0, 0);
+                icon.Apply();
+                cam.targetTexture = null;
+                RenderTexture.active = null;
+                Object.DestroyImmediate(rt);
+                Object.DestroyImmediate(d);
+            }
+            _ = scene;
+            return icon;
+        }
+
         public static void Screenshot()
         {
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
