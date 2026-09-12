@@ -25,8 +25,11 @@ namespace Ironfield.Drone
         [Tooltip("Nose pitch at full reticle deflection, degrees.")]
         public float pitchRange = 46f;
         [Range(0.1f, 1f)] public float precisionScale = 0.4f;
-        [Tooltip("Idle forward speed as a fraction of max, with the throttle centred.")]
-        [Range(0.1f, 1f)] public float cruiseFraction = 0.42f;
+        [Tooltip("Idle speed fraction with the throttle centred — lowered from "
+                + "0.42 after the throttle-mapping fix still felt like too "
+                + "narrow an accel/brake range; a slower coast baseline gives "
+                + "W and S both more room to actually change something.")]
+        [Range(0.05f, 1f)] public float cruiseFraction = 0.22f;
 
         [Header("Runtime state (read-only)")]
         [SerializeField] float _speed;
@@ -72,6 +75,9 @@ namespace Ironfield.Drone
 
         public System.Action FireRequested;
         public System.Action RecallRequested;
+        /// <summary>Fired on the "A" key / gamepad West button — see
+        /// CruiseAssist, which subscribes to toggle auto-cruise on/off.</summary>
+        public System.Action CruiseToggleRequested;
 
         void Awake()
         {
@@ -127,6 +133,7 @@ namespace Ironfield.Drone
 
             if (_in.FirePressed) FireRequested?.Invoke();
             if (_in.RecallPressed) RecallRequested?.Invoke();
+            if (_in.CruiseTogglePressed) CruiseToggleRequested?.Invoke();
 
             // cosmetic prop spin
             float spin = _speed * 40f + 900f + (Boosting ? 1600f : 0f);
@@ -147,9 +154,21 @@ namespace Ironfield.Drone
             Vector3 nose = noseRot * Vector3.forward;
 
             // --- speed along the nose --------------------------------
+            // Throttle 0 (hands off) sits at cruiseFraction; W pushes it up
+            // toward 1 (full speed), S pulls it down toward 0.12 (brake) — a
+            // real bug had the W half of this compressed into cruiseFraction
+            // (0.42) .. 1.0 mapped from the *midpoint* of a -1..1 range
+            // (Clamp01(0.5+0.5*throttle) is 0.5 at neutral, not 0), so neutral
+            // throttle was already sitting at 71% speed and full W only added
+            // another 29 points — the whole accel/brake range felt squeezed
+            // into a narrow band, exactly as reported. Fixed by lerping
+            // straight off Throttle itself (already -1..1) instead of that
+            // remapped midpoint, so W now sweeps the full cruiseFraction..1
+            // range and S the full cruiseFraction..0.12 range.
             float maxSpd = Boosting ? tuning.boostMaxSpeed : tuning.maxSpeed;
-            float frac = Mathf.Lerp(cruiseFraction, 1f, Mathf.Clamp01(0.5f + 0.5f * _in.Throttle));
-            if (_in.Throttle < 0f) frac = Mathf.Lerp(cruiseFraction, 0.12f, -_in.Throttle);  // S brakes
+            float frac = _in.Throttle >= 0f
+                ? Mathf.Lerp(cruiseFraction, 1f, _in.Throttle)
+                : Mathf.Lerp(cruiseFraction, 0.05f, -_in.Throttle);
             float speedCmd = frac * maxSpd;
 
             Vector3 want = nose * speedCmd;

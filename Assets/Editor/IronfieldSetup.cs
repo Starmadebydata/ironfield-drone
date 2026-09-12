@@ -2183,16 +2183,22 @@ namespace Ironfield.EditorTools
             Vector3 tPos = terrain.transform.position;
             Vector3 tSize = terrain.terrainData.size;
 
-            // Targets scaled ~2.4x alongside the terrain's 4x area increase (not
-            // the full 4x — the old map was already fairly dense near the road;
-            // scaling density with distance-from-road already thins it out
-            // further away, so a flat 4x would mostly pile more trees near the
-            // village without doing much for the empty far terrain). Then scaled
-            // again by vegetationDensityMul so later missions read barer.
-            int treeTarget = Mathf.RoundToInt(2400 * cfg.vegetationDensityMul);
-            int rockTarget = Mathf.RoundToInt(460 * cfg.vegetationDensityMul);
+            // Density more than doubled, and — more importantly — genuinely
+            // clustered now: the old logic placed the first ~960 trees
+            // completely regardless of the woods/clearing noise (only later
+            // arrivals respected it), which guaranteed a uniform sprinkle
+            // across the *entire* map before any real clearing ever formed —
+            // exactly the "scattered individual plants with lots of empty
+            // space" look reported after playtesting. Every candidate point
+            // now goes through the same density curve from the start, and
+            // that curve itself is deliberately high-contrast (squared, off a
+            // lower-frequency noise) so a spot is either clearly inside a
+            // grove or clearly in the open, not sprinkled thin everywhere in
+            // between.
+            int treeTarget = Mathf.RoundToInt(5200 * cfg.vegetationDensityMul);
+            int rockTarget = Mathf.RoundToInt(700 * cfg.vegetationDensityMul);
             int treeN = 0, rockN = 0;
-            for (int i = 0; i < 30000 && (treeN < treeTarget || rockN < rockTarget); i++)
+            for (int i = 0; i < 120000 && (treeN < treeTarget || rockN < rockTarget); i++)
             {
                 float nx = (float)rng.NextDouble();
                 float nz = (float)rng.NextDouble();
@@ -2202,11 +2208,18 @@ namespace Ironfield.EditorTools
                 if (Vector3.Distance(world, new Vector3(40, 0, 0)) < 62f) continue;
                 float steep = terrain.terrainData.GetSteepness(nx, nz);
 
-                float woods = Fbm(world.x * 0.010f + 5f + cfg.terrainSeedOffset.x * 0.3f,
-                                   world.z * 0.010f + 2f + cfg.terrainSeedOffset.y * 0.3f, 3);
+                // Lower frequency than before (bigger, more legible grove
+                // regions) + squared for contrast: values trend hard toward
+                // "definitely a clearing" or "definitely a grove" instead of
+                // a smooth gradient that reads as uniform light coverage.
+                float woodsRaw = Fbm(world.x * 0.006f + 5f + cfg.terrainSeedOffset.x * 0.3f,
+                                      world.z * 0.006f + 2f + cfg.terrainSeedOffset.y * 0.3f, 4);
+                float density = Mathf.Clamp01(0.5f + woodsRaw * 1.6f);
+                density *= density;
+                float woods = woodsRaw;   // still used below to pick species mix
                 world.y = SampleHeight(terrain, world);
 
-                if (steep > 24f && rockN < Mathf.RoundToInt(620 * cfg.vegetationDensityMul))
+                if (steep > 24f && rockN < rockTarget)
                 {
                     var rk = (GameObject)PrefabUtility.InstantiatePrefab(rock);
                     rk.transform.SetParent(scatter);
@@ -2219,7 +2232,17 @@ namespace Ironfield.EditorTools
                     continue;
                 }
 
-                if (woods < 0.06f && treeN >= Mathf.RoundToInt(960 * cfg.vegetationDensityMul)) continue;    // keep some open fields
+                // Explicit cap, not just relying on the outer while-loop exit: the
+                // loop keeps running past this point whenever rockN still trails
+                // rockTarget, and the density gate below now rejects most
+                // candidates (unlike the old near-100%-acceptance version) — so
+                // reaching treeTarget can take far more iterations than reaching
+                // rockTarget, and without this guard trees kept getting placed
+                // the whole time the loop was still going for rocks' sake, badly
+                // overshooting treeTarget (found via a 4x unexplained scene-file
+                // bloat — 117MB instead of the expected ~35MB).
+                if (treeN >= treeTarget) continue;
+                if (rng.NextDouble() > density) continue;   // real clearings stay genuinely empty
                 GameObject src;
                 double roll = rng.NextDouble();
                 if (woods > 0.16f) src = roll < 0.35 ? conif : broad;

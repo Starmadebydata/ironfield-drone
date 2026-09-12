@@ -25,6 +25,7 @@ namespace Ironfield.Drone
         public bool Precision;     // RMB held
         public bool FirePressed;
         public bool RecallPressed;
+        public bool CruiseTogglePressed;
 
         /// <summary>True if the last frame with meaningful input came from a
         /// gamepad rather than mouse/keyboard — HUD control prompts follow this.</summary>
@@ -54,11 +55,12 @@ namespace Ironfield.Drone
                 i.Boost |= kb.leftShiftKey.isPressed;
                 i.RecallPressed |= kb.rKey.wasPressedThisFrame;
                 i.FirePressed |= kb.enterKey.wasPressedThisFrame;
+                i.CruiseTogglePressed |= kb.aKey.wasPressedThisFrame;
             }
 
             bool mouseKbActive = (mouse != null && mouse.delta.ReadValue().sqrMagnitude > 0.25f)
                 || i.FirePressed || i.Throttle != 0f || i.ClimbTrim != 0f || i.Roll != 0f
-                || i.RecallPressed || i.Boost;
+                || i.RecallPressed || i.Boost || i.CruiseTogglePressed;
             if (mouseKbActive) LastWasGamepad = false;
 
             var gp = Gamepad.current;
@@ -76,9 +78,10 @@ namespace Ironfield.Drone
                 i.Precision |= gp.leftTrigger.ReadValue() > 0.5f;
                 i.FirePressed |= gp.buttonSouth.wasPressedThisFrame || gp.rightShoulder.wasPressedThisFrame;
                 i.RecallPressed |= gp.buttonNorth.wasPressedThisFrame;
+                i.CruiseTogglePressed |= gp.buttonWest.wasPressedThisFrame;
 
                 bool gamepadActive = r.sqrMagnitude > 0.04f || l.sqrMagnitude > 0.04f
-                    || i.Boost || i.Precision || i.FirePressed || i.RecallPressed
+                    || i.Boost || i.Precision || i.FirePressed || i.RecallPressed || i.CruiseTogglePressed
                     || gp.rightShoulder.isPressed || gp.leftShoulder.isPressed;
                 if (gamepadActive && !mouseKbActive) LastWasGamepad = true;
             }

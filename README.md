@@ -77,6 +77,7 @@ the mouse and it flies straight.
 | Climb / descend trim | `Space` / `Ctrl`                    | RB / LB                |
 | Roll              | `Q` / `E`                              | Left stick X           |
 | Recall            | `R`                                    | Y                      |
+| Auto-cruise       | `A`                                    | X / West button        |
 | Show controls     | hold `H`                               | —                      |
 
 The OS cursor is hidden and locked while flying; it returns on the end screen.

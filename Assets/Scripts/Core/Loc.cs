@@ -350,6 +350,30 @@ namespace Ironfield.Core
                 "Q / E        横滚               R      呼回",
                 "Q / E        橫滾               R      呼回",
             },
+            ["ctrl.mkb.cruise"] = new[]
+            {
+                "A          toggle auto-cruise",
+                "A          basculer pilote auto",
+                "A   自動巡航 切替",
+                "A          Autopilot umschalten",
+                "A          alternar piloto automático",
+                "A            切换自动巡航",
+                "A            切換自動巡航",
+            },
+            ["ctrl.pad.cruise"] = new[]
+            {
+                "X          toggle auto-cruise",
+                "X          basculer pilote auto",
+                "X   自動巡航 切替",
+                "X          Autopilot umschalten",
+                "X          alternar piloto automático",
+                "X            切换自动巡航",
+                "X            切換自動巡航",
+            },
+            ["hud.cruise_on"] = new[]
+            {
+                "CRUISE", "PILOTE AUTO", "自動巡航", "AUTOPILOT", "CRUCERO", "自动巡航", "自動巡航",
+            },
             ["ctrl.pause"] = new[]
             {
                 "Esc       pause / resume",

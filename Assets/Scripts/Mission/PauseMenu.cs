@@ -127,12 +127,12 @@ namespace Ironfield.Mission
         static readonly string[] MouseKbKeys =
         {
             "ctrl.mkb.aim", "ctrl.mkb.fire", "ctrl.mkb.precision",
-            "ctrl.mkb.throttle", "ctrl.mkb.trim", "ctrl.mkb.roll", "ctrl.pause",
+            "ctrl.mkb.throttle", "ctrl.mkb.trim", "ctrl.mkb.roll", "ctrl.mkb.cruise", "ctrl.pause",
         };
         static readonly string[] GamepadKeys =
         {
             "ctrl.pad.aim", "ctrl.pad.fire", "ctrl.pad.precision",
-            "ctrl.pad.throttle", "ctrl.pad.trim", "ctrl.pad.roll", "ctrl.pause",
+            "ctrl.pad.throttle", "ctrl.pad.trim", "ctrl.pad.roll", "ctrl.pad.cruise", "ctrl.pause",
         };
 
         /// <summary>Mouse+keyboard lines, or gamepad lines if that's what the

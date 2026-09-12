@@ -30,6 +30,7 @@ namespace Ironfield.Mission
         Texture2D _px;
         Camera _cam;
         AudioSource _sfx;
+        Ironfield.Drone.CruiseAssist _cruise;
 
         float _hitMarker;        // >0 while showing
         bool _hitWasKill;
@@ -169,6 +170,16 @@ namespace Ironfield.Mission
                 GUI.Label(new Rect(24, h - 66, 320, 22), $"{drone.Speed * 3.6f:0} km/h", _label);
                 GUI.Label(new Rect(24, h - 44, 320, 22), Loc.Get("hud.alt", Mathf.RoundToInt(drone.transform.position.y)), _small);
 
+                if (_cruise == null || _cruise.gameObject != drone.gameObject)
+                    _cruise = drone.GetComponent<Ironfield.Drone.CruiseAssist>();
+                if (_cruise != null && _cruise.Engaged)
+                {
+                    var cs = new GUIStyle(_label) { fontSize = 12 };
+                    float pulse = 0.7f + 0.3f * Mathf.Sin(Time.time * 4f);
+                    cs.normal.textColor = new Color(0.5f, 0.85f, 1f, pulse);
+                    GUI.Label(new Rect(24, h - 88, 320, 20), Loc.Get("hud.cruise_on"), cs);
+                }
+
                 if (drone.IsNearBoundary)
                 {
                     var bw = new GUIStyle(_center) { fontSize = 20, fontStyle = FontStyle.Bold };
@@ -189,13 +200,13 @@ namespace Ironfield.Mission
                 string[] keyKeys = DroneInput.LastWasGamepad
                     ? new[]
                     {
-                        "ctrl.pad.aim", "ctrl.pad.fire", "ctrl.pad.precision",
-                        "ctrl.pad.throttle", "ctrl.pad.trim", "ctrl.pad.roll", "ctrl.hint_hold_h",
+                        "ctrl.pad.aim", "ctrl.pad.fire", "ctrl.pad.precision", "ctrl.pad.throttle",
+                        "ctrl.pad.trim", "ctrl.pad.roll", "ctrl.pad.cruise", "ctrl.hint_hold_h",
                     }
                     : new[]
                     {
-                        "ctrl.mkb.aim", "ctrl.mkb.fire", "ctrl.mkb.precision",
-                        "ctrl.mkb.throttle", "ctrl.mkb.trim", "ctrl.mkb.roll", "ctrl.hint_hold_h",
+                        "ctrl.mkb.aim", "ctrl.mkb.fire", "ctrl.mkb.precision", "ctrl.mkb.throttle",
+                        "ctrl.mkb.trim", "ctrl.mkb.roll", "ctrl.mkb.cruise", "ctrl.hint_hold_h",
                     };
                 for (int i = 0; i < keyKeys.Length; i++)
                     GUI.Label(new Rect(w - 260, h - 24 - (keyKeys.Length - i) * 16, 250, 16), Loc.Get(keyKeys[i]), hs);

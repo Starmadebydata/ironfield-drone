@@ -151,6 +151,11 @@ namespace Ironfield.Mission
             if (assist == null) assist = ActiveDrone.gameObject.AddComponent<DiveAssist>();
             assist.targeting = targeting;
 
+            var cruise = ActiveDrone.GetComponent<CruiseAssist>();
+            if (cruise == null) cruise = ActiveDrone.gameObject.AddComponent<CruiseAssist>();
+            cruise.mission = this;
+            cruise.targeting = targeting;
+
             // Warhead detonation (rams a target / ground): warhead destroys itself.
             var warhead = ActiveDrone.GetComponent<DroneWarhead>();
             if (warhead != null) warhead.Detonated += OnDroneSpent;

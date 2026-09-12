@@ -33,6 +33,7 @@ namespace Ironfield.Drone
 
         Rigidbody _rb;
         DroneController _drone;
+        bool _wasEngaged;
 
         void Awake()
         {
@@ -69,25 +70,49 @@ namespace Ironfield.Drone
         }
 
         /// <summary>Shared engagement gate: hard lock on a live target, moving
-        /// fast enough, in range, and already roughly pointed at it.</summary>
+        /// fast enough, in range, and already roughly pointed at it. Once
+        /// actually committed, re-checks with a looser speed/cone tolerance
+        /// (hysteresis) instead of the strict entry gate — see _wasEngaged.</summary>
         Vehicle Engaged(out float dist)
         {
             dist = 0f;
-            if (targeting == null || !targeting.HasHardLock) return null;
+            if (targeting == null || !targeting.HasHardLock) { _wasEngaged = false; return null; }
             var t = targeting.CurrentTarget;
-            if (t == null || t.IsDestroyed) return null;
-
-            Vector3 v = _rb.linearVelocity;
-            float speed = v.magnitude;
-            if (speed < minSpeed) return null;
+            if (t == null || t.IsDestroyed) { _wasEngaged = false; return null; }
 
             Vector3 to = t.AimPoint - transform.position;
             dist = to.magnitude;
-            if (dist > maxRange || dist < 1f) return null;
+            if (dist > maxRange || dist < 1f) { _wasEngaged = false; return null; }
+
+            // Already within kill range: fire regardless of current speed or
+            // heading. Real bug this fixed — obstacle avoidance/terrain/the
+            // drone's own flight model can bleed speed off right at the end of
+            // a committed dive; the old minSpeed check below ran unconditionally
+            // and would silently disengage a drone sitting right on top of its
+            // target just because it had slowed down, stranding it there
+            // instead of detonating (found while testing an unrelated change —
+            // see Auto_attack_setting_finishes_a_committed_dive_on_its_own).
+            if (dist <= autoFireRange) { _wasEngaged = true; return t; }
+
+            Vector3 v = _rb.linearVelocity;
+            float speed = v.magnitude;
+            // Hysteresis: the strict thresholds are for deciding whether to
+            // COMMIT to a dive in the first place (so it only ever kicks in on
+            // a course the player already chose). Once genuinely committed,
+            // a moving convoy target or a brief speed dip from the flight
+            // model/avoidance shouldn't be enough to drop it and strand the
+            // drone mid-approach — that flicker (engage this frame, drop the
+            // next, re-engage a few frames later) is what actually produced
+            // the stall this whole method's comment history is about.
+            float speedGate = _wasEngaged ? minSpeed * 0.35f : minSpeed;
+            float coneGate = _wasEngaged ? engageConeDeg * 1.75f : engageConeDeg;
+
+            if (speed < speedGate) { _wasEngaged = false; return null; }
 
             float ang = Vector3.Angle(v / speed, to / dist);
-            if (ang > engageConeDeg) return null;
+            if (ang > coneGate) { _wasEngaged = false; return null; }
 
+            _wasEngaged = true;
             return t;
         }
     }
