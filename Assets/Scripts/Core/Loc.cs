@@ -138,6 +138,28 @@ namespace Ironfield.Core
             },
             ["drone.light.short"] = new[] { "Light", "Léger", "軽量", "Leicht", "Ligero", "轻型", "輕型" },
             ["drone.heavy.short"] = new[] { "Heavy", "Lourd", "重量", "Schwer", "Pesado", "重型", "重型" },
+            ["drone.recon.name"] = new[] { "Recon Drone", "Drone de reconnaissance", "偵察無人機", "Aufklärungsdrohne", "Dron de reconocimiento", "侦察无人机", "偵察無人機" },
+            ["drone.recon.sub"] = new[]
+            {
+                "Fixed-wing · Fast · Fragile",
+                "Voilure fixe · Rapide · Fragile",
+                "固定翼・高速・脆弱",
+                "Starrflügler · Schnell · Zerbrechlich",
+                "Ala fija · Rápido · Frágil",
+                "固定翼 · 高速 · 脆弱",
+                "固定翼 · 高速 · 脆弱",
+            },
+            ["drone.recon.locked"] = new[]
+            {
+                "Clear Mission 02 to unlock",
+                "Terminez la mission 02 pour débloquer",
+                "ミッション02をクリアすると解放されます",
+                "Schließe Mission 02 ab, um freizuschalten",
+                "Supera la misión 02 para desbloquear",
+                "打通任务02解锁",
+                "打通任務02解鎖",
+            },
+            ["drone.recon.short"] = new[] { "Recon", "Reco", "偵察", "Aufkl.", "Reco", "侦察", "偵察" },
 
             // ---- mission catalog display names -----------------------------
             ["mission.m01.name"] = new[] { "01 · Ridge Recon", "01 · Reconnaissance de crête", "01・稜線偵察", "01 · Grat-Aufklärung", "01 · Reconocimiento de cresta", "01 · 侦察脊线", "01 · 偵察脊線" },

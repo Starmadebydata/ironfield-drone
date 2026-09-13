@@ -145,8 +145,12 @@ namespace Ironfield.Mission
             // --- top-left status --------------------------------------
             GUI.Label(new Rect(24, 18, 520, 24),
                 Loc.Get("hud.column", mission.Killed, mission.VehiclesTotal), _label);
-            string droneType = GameSettings.SelectedDrone == 1
-                ? Loc.Get("drone.heavy.short") : Loc.Get("drone.light.short");
+            string droneType = GameSettings.SelectedDrone switch
+            {
+                1 => Loc.Get("drone.heavy.short"),
+                2 => Loc.Get("drone.recon.short"),
+                _ => Loc.Get("drone.light.short"),
+            };
             GUI.Label(new Rect(24, 42, 520, 24), Loc.Get("hud.drones", mission.DronesLeft, droneType), _label);
             float statusY = 66f;
             if (mission.BonusTotal > 0)

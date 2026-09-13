@@ -182,14 +182,18 @@ namespace Ironfield.UI
             // heavy-drone subtitle ran longer than the original Chinese/
             // English and were clipping at 210.
             const float dw = 260, dh = 54, dgap = 16;
-            float startX = w * 0.5f - (dw * 2 + dgap) * 0.5f;
+            float startX = w * 0.5f - (dw * 3 + dgap * 2) * 0.5f;
             bool heavyUnlocked = CampaignProgress.IsUnlocked(1);
+            bool reconUnlocked = CampaignProgress.IsUnlocked(2);
 
             DrawDroneOption(new Rect(startX, y, dw, dh), 0,
                 Loc.Get("drone.light.name"), Loc.Get("drone.light.sub"), true);
             DrawDroneOption(new Rect(startX + dw + dgap, y, dw, dh), 1,
                 Loc.Get("drone.heavy.name"),
                 heavyUnlocked ? Loc.Get("drone.heavy.sub") : Loc.Get("drone.heavy.locked"), heavyUnlocked);
+            DrawDroneOption(new Rect(startX + (dw + dgap) * 2, y, dw, dh), 2,
+                Loc.Get("drone.recon.name"),
+                reconUnlocked ? Loc.Get("drone.recon.sub") : Loc.Get("drone.recon.locked"), reconUnlocked);
 
             return dh;
         }

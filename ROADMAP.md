@@ -648,3 +648,58 @@ headless 重建 + Release build 验证(0 错误 0 警告);肉眼确认因本 ses
    `computer-use` 工具层面的可靠性问题(第一次是锁屏),**没有掩盖成"已验证"
    ——如实记录为待用户本人试玩确认**,不代表代码本身有问题(所有自动化验证
    都是绿的)。
+
+## 阶段外补充:第三种无人机——固定翼侦察机(2026-09-13,用户提供参考图)
+
+用户发来一张 Bayraktar TB2(真实"Ukrainian Navy"标识+编号)的照片,要求
+"进一步构建不同的无人机模型"。用 AskUserQuestion 确认了范围:新增一款**可
+选玩家机型**(继轻型/重型之后的第三种),模型优先从 poly.pizza 找真实 CC0
+素材。
+
+1. **素材来源**:poly.pizza 上搜索固定翼军用无人机关键词(uav / predator
+   drone / military drone 等)没有找到形状合适、质量过关的免费模型——找到
+   的候选要么过于抽象(几根圆柱拼的"Predator Drone"),要么是蜜蜂造型的
+   玩具无人机。改用项目本来就有的**程序化 Blender 建模**兜底方案(和
+   `drone.py`/`tank.py` 同一套 `tools/blender/_common.py` 工具链),新写
+   `tools/blender/recon_drone.py`——双尾撑、高单翼、倒 V 尾翼、机身后推式
+   螺旋桨的固定翼侦察机轮廓,纯原创低多边形 blockout,**刻意不复刻任何
+   真实机型的国籍标识/番号/涂装**(纯灰色中性涂装),符合本项目"设定完全
+   虚构"的既定原则(见 CREDITS.md 新增说明)。
+2. **发现并修了一个推进器旋转轴的潜在 bug**:`DroneController` 原来无差别
+   把所有 `propSpinners` 绕**世界坐标系的正上方**旋转——四旋翼的桨叶本来
+   就水平铺开、绕竖直轴转,这个写法凑巧是对的;但新的固定翼无人机的推进
+   桨是**竖直朝向、绕机身前后轴旋转**,直接复用世界正上方轴会转得完全不对
+   (桨叶朝向和旋转轴垂直,视觉上会变成诡异的"扑动"而不是旋转)。修复:
+   `IronfieldSetup.BuildDronePrefab` 给每个推进器 pivot 的朝向,改成从该
+   螺旋桨网格自身最薄的局部坐标轴反推(扁平桨叶最薄的方向天然垂直于桨盘
+   平面,这个方向就是正确的旋转轴)——四旋翼桨叶算出来的还是原来的竖直轴
+   (行为不变),固定翼推进桨则会自动得到水平轴。`DroneController.cs` 配合
+   把 `Rotate` 从 `Space.World` 改成 `Space.Self`(绕 pivot 自身局部轴转),
+   这样每个 pivot 在建造时定好的轴才会生效;副作用是四旋翼桨叶在无人机
+   坡转(roll)时会跟着机身一起倾斜旋转轴,比原来"不管姿态永远绕世界竖直轴
+   转"更符合物理直觉,但视觉上几乎看不出差别(转速本来就快到只剩模糊）。
+3. **平衡设计**:侦察机主打"固定翼"的真实手感差异而不是数值碾压——
+   `maxSpeed`/`boostMaxSpeed` 全场最快(+23%/+15% vs 轻型),但 `yawRate`
+   全场最慢(-44% vs 轻型,匹配固定翼转弯不如四旋翼灵活的直觉),`maxHealth`
+   全场最低(-27% vs 轻型)——玻璃大炮,奖励规划进入路线而不是硬拼转向躲
+   炮火。解锁条件仿照重型的"打通任务01解锁"模式,改成"打通任务02解锁"
+   (`CampaignProgress.IsUnlocked(2)`),三档机型对应三关的渐进解锁曲线。
+4. `GameSettings.SelectedDrone` 范围从 0-1 扩到 0-2;`MissionManager` 新增
+   `dronePrefabRecon` 字段与选择分支;主菜单机型选择器从两列扩到三列;HUD
+   机型简称标签(DRONES 行)扩展 switch 分支。新增
+   `Recon_drone_spawns_and_is_faster_but_less_agile_than_light`
+   (PlayMode)——不只测生成了对的 prefab,还断言真实的调校数值关系(更快
+   +转弯更慢),复用 `Heavy_drone_has_more_health_than_light` 建立的"测真实
+   数值差异而不只是测能跑起来"的模式。EditMode 21/21,PlayMode 27/27
+   (26 之前 + 1 新增)。Release build 0 错误 0 警告。
+5. **实机验证**:这次 `computer-use` 的"点击=通知中心"问题依旧存在(点击
+   仍然大部分被拒绝),但换了个思路绕过——用已有的 `-perftest
+   -perftest-scene Mission01` 命令行调试入口(为性能测试而建,详见更早的
+   "Real perf measurement" 记录)直接跳过主菜单点击、连同 `defaults write`
+   直接改 PlayerPrefs 把 `SelectedDrone` 设成 2、`campaign.unlocked` 设成
+   3(绕过解锁条件),重新启动后不需要任何点击就能直接看到侦察机在关卡里
+   飞。截图确认:HUD 正确显示"DRONES n (Recon)"、时速 97 km/h(明显快于
+   轻型的巡航速度,符合调校)、飞行中放大截图能看到机翼横杆+双尾撑的轮廓
+   清晰可辨,没有崩溃/报错。没能拿到完全正面、无遮挡的近景(`-perftest`
+   20 秒后自动退出,加上截图往返本身有延迟,好几次刚要细看进程就已经退出
+   了),细节观感(涂装颜色、比例观感)仍待用户本人实际试玩确认。

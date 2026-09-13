@@ -47,3 +47,8 @@ Terrain heightmap & textures, road ribbon mesh, bushes, rocks, craters,
 sandbags, burnt cars, explosion / fire FX, and all game code are original to
 this project (`tools/blender/`, `Assets/Editor/IronfieldSetup.cs`,
 `Assets/Scripts/`).
+
+The Recon Drone (third playable drone type) is an original procedural
+blockout (`tools/blender/recon_drone.py`) — a generic twin-boom, fixed-wing
+silhouette with a plain scout-grey livery, no real-world markings, unit
+numbers, or faction insignia (matches this project's fictional setting).

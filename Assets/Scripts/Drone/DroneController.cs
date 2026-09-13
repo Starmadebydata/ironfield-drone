@@ -135,11 +135,17 @@ namespace Ironfield.Drone
             if (_in.RecallPressed) RecallRequested?.Invoke();
             if (_in.CruiseTogglePressed) CruiseToggleRequested?.Invoke();
 
-            // cosmetic prop spin
+            // cosmetic prop spin — around each pivot's own LOCAL up, which
+            // IronfieldSetup.BuildDronePrefab orients per-prop from the mesh's
+            // own thinnest dimension (so horizontal quad rotors and a fixed-
+            // wing drone's vertical pusher prop both spin around the right
+            // axis without special-casing here). Space.Self also means a
+            // rigidly-mounted rotor banks correctly with the airframe instead
+            // of always spinning around world-up regardless of aircraft roll.
             float spin = _speed * 40f + 900f + (Boosting ? 1600f : 0f);
             if (propSpinners != null)
                 foreach (var p in propSpinners)
-                    if (p) p.Rotate(Vector3.up, spin * dt, Space.World);
+                    if (p) p.Rotate(Vector3.up, spin * dt, Space.Self);
         }
 
         void FixedUpdate()

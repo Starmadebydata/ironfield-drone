@@ -43,7 +43,8 @@ namespace Ironfield.Core
         /// an opt-in convenience/accessibility toggle, not the default experience.</summary>
         public static bool AutoAttack { get; private set; }
         /// <summary>0 = Light (default, always unlocked), 1 = Heavy (unlocked once
-        /// Mission02 is — i.e. after winning Mission01, see CampaignProgress).</summary>
+        /// Mission02 is — i.e. after winning Mission01), 2 = Recon (unlocked once
+        /// Mission03 is — i.e. after winning Mission02). See CampaignProgress.</summary>
         public static int SelectedDrone { get; private set; }
         /// <summary>Scales every IMGUI screen (menus/HUD/pause) around screen
         /// centre — see Ironfield.UI.UiScaling. 1 = default size.</summary>
@@ -90,7 +91,7 @@ namespace Ironfield.Core
         public static void SetColorblindMode(bool v) { ColorblindMode = v; Save(); }
         public static void SetCameraShake(bool v) { CameraShake = v; Save(); }
         public static void SetAutoAttack(bool v) { AutoAttack = v; Save(); }
-        public static void SetSelectedDrone(int v) { SelectedDrone = Mathf.Clamp(v, 0, 1); Save(); }
+        public static void SetSelectedDrone(int v) { SelectedDrone = Mathf.Clamp(v, 0, 2); Save(); }
         public static void SetUiScale(float v) { UiScale = Mathf.Clamp(v, 0.8f, 1.4f); Save(); }
         public static void SetLanguage(Language v) { Language = v; Save(); }
         public static void SetFullscreen(bool v) { Fullscreen = v; Apply(); Save(); }

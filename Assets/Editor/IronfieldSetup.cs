@@ -37,6 +37,7 @@ namespace Ironfield.EditorTools
 
         const string ArtDrone = "Assets/Art/Drone/Drone.fbx";
         const string ArtDroneExt = "Assets/Art/External/Drone_FPV.fbx";   // CC-BY, NateGazzard (from .glb)
+        const string ArtReconDrone = "Assets/Art/ReconDrone/ReconDrone.fbx";  // procedural blockout, tools/blender/recon_drone.py
         const string ArtTank = "Assets/Art/Vehicles/Tank.fbx";
         const string ArtIFV = "Assets/Art/Vehicles/IFV.fbx";
         const string ArtTruck = "Assets/Art/Vehicles/Truck.fbx";
@@ -255,6 +256,7 @@ namespace Ironfield.EditorTools
 
             ConfigureModelImport(ArtDrone, 1f);
             ConfigureModelImport(ArtDroneExt, 1f);
+            ConfigureModelImport(ArtReconDrone, 1f);
             ConfigureModelImport(ArtTank, 1f);
             ConfigureModelImport(ArtIFV, 1f);
             ConfigureModelImport(ArtTruck, 1f);
@@ -264,6 +266,7 @@ namespace Ironfield.EditorTools
 
             var tuning = CreateTuning();
             var tuningHeavy = CreateHeavyTuning();
+            var tuningRecon = CreateReconTuning();
             BuildExplosionPrefab();
             BuildFireSmokePrefab();
             AssetDatabase.SaveAssets();
@@ -271,6 +274,7 @@ namespace Ironfield.EditorTools
 
             BuildDronePrefab(tuning, DroneBuildConfig.Light);
             BuildDronePrefab(tuningHeavy, DroneBuildConfig.Heavy);
+            BuildDronePrefab(tuningRecon, DroneBuildConfig.Recon);
             BuildVehiclePrefab("Tank", ArtTank, VehicleClass.Tank, 900f, 60f, 3.6f, 7.6f, 2.7f);
             BuildVehiclePrefab("IFV", ArtIFV, VehicleClass.IFV, 420f, 25f, 3.2f, 6.2f, 2.9f);
             BuildVehiclePrefab("Truck", ArtTruck, VehicleClass.Truck, 160f, 0f, 2.7f, 8.2f, 3.3f);
@@ -773,6 +777,36 @@ namespace Ironfield.EditorTools
             return t;
         }
 
+        /// <summary>Third drone type — fixed-wing rather than a quad, so the
+        /// tradeoff is a different shape entirely: fastest of the three (a
+        /// glide-efficient airframe covers ground quicker) and by far the
+        /// least agile turning (yawRate well below Heavy, matching a fixed
+        /// wing's real handling), with the thinnest airframe (lowest health)
+        /// — a glass cannon that rewards planning the approach instead of
+        /// out-turning return fire.</summary>
+        static DroneTuning CreateReconTuning()
+        {
+            string p = SettingsDir + "/DroneTuning_Recon.asset";
+            var t = AssetDatabase.LoadAssetAtPath<DroneTuning>(p);
+            if (t == null)
+            {
+                t = ScriptableObject.CreateInstance<DroneTuning>();
+                AssetDatabase.CreateAsset(t, p);
+            }
+            t.maxSpeed = 27f;                // +23% vs Light: fastest of the three
+            t.boostMaxSpeed = 46f;           // +15%
+            t.yawRate = 62f;                 // -44% vs Light: sluggish to turn, fixed-wing handling
+            t.climbAccel = 11f;
+            t.gravity = 9.81f;
+            t.linearDrag = 1.5f;             // slippery — coasts further once up to speed
+            t.angularDamp = 6f;
+            t.maxHealth = 40f;               // -27% vs Light: thinnest airframe of the three
+            t.warheadDamage = 650f;          // same payload as Light — the tradeoff is survivability/agility, not punch
+            t.warheadRadius = 5.5f;
+            EditorUtility.SetDirty(t);
+            return t;
+        }
+
         static Explosion BuildExplosionPrefab()
         {
             var go = new GameObject("Explosion");
@@ -817,16 +851,20 @@ namespace Ironfield.EditorTools
         struct DroneBuildConfig
         {
             public string prefabName;
+            public string modelPath;
             public float sizeMultiplier;
             public Color airframeColor;
             public Color rotorColor;
+            public Vector3 colliderSize;
 
             public static readonly DroneBuildConfig Light = new()
             {
                 prefabName = "Drone",
+                modelPath = ArtDroneExt,
                 sizeMultiplier = 1f,
                 airframeColor = new Color(0.055f, 0.055f, 0.065f),   // dark carbon
                 rotorColor = new Color(0.16f, 0.16f, 0.18f),          // gunmetal
+                colliderSize = new Vector3(2.8f, 1.0f, 2.8f),
             };
             // Bulkier silhouette + an armoured olive tint (same treatment as
             // Militarize on the tank) so it visually reads as "heavier armour",
@@ -834,9 +872,26 @@ namespace Ironfield.EditorTools
             public static readonly DroneBuildConfig Heavy = new()
             {
                 prefabName = "Drone_Heavy",
+                modelPath = ArtDroneExt,
                 sizeMultiplier = 1.22f,
                 airframeColor = Militarize(new Color(0.10f, 0.11f, 0.08f)),
                 rotorColor = new Color(0.14f, 0.15f, 0.13f),
+                colliderSize = new Vector3(2.8f, 1.0f, 2.8f),
+            };
+            // Third type, visually distinct silhouette (fixed-wing, twin-boom,
+            // procedural blockout — see tools/blender/recon_drone.py) rather
+            // than a retint of the quad model. Pale scout-grey livery reads as
+            // "recon" against Light's carbon-black and Heavy's olive armour.
+            // Collider is wide/flat to roughly match the wingspan-dominant
+            // footprint instead of the quad's near-square one.
+            public static readonly DroneBuildConfig Recon = new()
+            {
+                prefabName = "Drone_Recon",
+                modelPath = ArtReconDrone,
+                sizeMultiplier = 1f,
+                airframeColor = new Color(0.58f, 0.58f, 0.55f),      // scout grey
+                rotorColor = new Color(0.12f, 0.12f, 0.12f),
+                colliderSize = new Vector3(3.0f, 0.6f, 1.8f),
             };
         }
 
@@ -845,9 +900,11 @@ namespace Ironfield.EditorTools
             var explosion = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Explosion.prefab")
                 ?.GetComponent<Explosion>();
 
-            // Prefer the real CC-BY FPV model; fall back to the Blender blockout.
-            var model = AssetDatabase.LoadAssetAtPath<GameObject>(ArtDroneExt)
-                        ?? AssetDatabase.LoadAssetAtPath<GameObject>(ArtDrone);
+            // Prefer this config's own model; the quad configs additionally fall
+            // back to the Blender blockout if the CC-BY FPV model is missing.
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(cfg.modelPath);
+            if (model == null && cfg.modelPath == ArtDroneExt)
+                model = AssetDatabase.LoadAssetAtPath<GameObject>(ArtDrone);
             GameObject root = model != null
                 ? (GameObject)PrefabUtility.InstantiatePrefab(model)
                 : GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -901,11 +958,27 @@ namespace Ironfield.EditorTools
                 if (mr == null) continue;
                 var pivot = new GameObject(tr.name + "_Spin");
                 pivot.transform.SetParent(tr.parent, false);
-                // spin axis is TRUE vertical through the rotor's centre — a real
-                // quad's rotors sweep the horizontal plane. World-aligned pivot
-                // so DroneController can just spin it about world up.
                 pivot.transform.position = new Vector3(mr.bounds.center.x, mr.bounds.center.y, mr.bounds.center.z);
-                pivot.transform.rotation = Quaternion.identity;
+                // Spin axis = the prop mesh's own thinnest local dimension —
+                // a flat blade/hub is thin exactly perpendicular to the disc
+                // it sweeps, so this works for a horizontal quad rotor (thin
+                // local Z, i.e. world/local up — same result the old hardcoded
+                // Quaternion.identity always gave) *and* a vertically-oriented
+                // pusher prop like the Recon drone's (thin along a different
+                // local axis) without hand-coding per-model axis knowledge.
+                // DroneController spins every pivot around its own LOCAL up
+                // (Space.Self), so orienting the pivot here is all that's
+                // needed.
+                var mf = tr.GetComponent<MeshFilter>();
+                Vector3 localSpinAxis = Vector3.up;
+                if (mf != null && mf.sharedMesh != null)
+                {
+                    Vector3 ext = mf.sharedMesh.bounds.size;
+                    localSpinAxis = (ext.x <= ext.y && ext.x <= ext.z) ? Vector3.right
+                                   : (ext.y <= ext.z) ? Vector3.up : Vector3.forward;
+                }
+                Vector3 worldSpinAxis = tr.TransformDirection(localSpinAxis).normalized;
+                pivot.transform.rotation = Quaternion.FromToRotation(Vector3.up, worldSpinAxis);
                 tr.SetParent(pivot.transform, true);
                 props.Add(pivot.transform);
             }
@@ -946,7 +1019,7 @@ namespace Ironfield.EditorTools
 
             var col = root.AddComponent<BoxCollider>();
             col.center = new Vector3(0f, 0.2f, 0f);
-            col.size = new Vector3(2.8f, 1.0f, 2.8f);
+            col.size = cfg.colliderSize;
 
             var health = root.AddComponent<HealthComponent>();
             health.maxHealth = tuning.maxHealth; health.armor = 0f;
@@ -1365,6 +1438,8 @@ namespace Ironfield.EditorTools
             mgr.dronePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Drone.prefab")
                 .GetComponent<DroneController>();
             mgr.dronePrefabHeavy = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Drone_Heavy.prefab")
+                ?.GetComponent<DroneController>();
+            mgr.dronePrefabRecon = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabDir + "/Drone_Recon.prefab")
                 ?.GetComponent<DroneController>();
             mgr.launchPoint = launch.transform;
             mgr.cameraRig = rig;
