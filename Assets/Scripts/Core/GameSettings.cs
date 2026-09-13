@@ -23,6 +23,7 @@ namespace Ironfield.Core
         const string KSelectedDrone = "ironfield.selecteddrone";
         const string KUiScale = "ironfield.a11y.uiscale";
         const string KLanguage = "ironfield.language";
+        const string KFullscreen = "ironfield.display.fullscreen";
 
         public static float MasterVolume { get; private set; } = 1f;
         public static float SfxVolume { get; private set; } = 1f;
@@ -50,6 +51,13 @@ namespace Ironfield.Core
         /// <summary>UI language — defaults to English regardless of system
         /// locale (the user's explicit call, not auto-detected).</summary>
         public static Language Language { get; private set; } = Language.English;
+        /// <summary>Whether the game window runs fullscreen (borderless
+        /// FullScreenWindow) or windowed. Defaults to true — the project's own
+        /// FullScreenMode default — but the Player build previously shipped
+        /// with no in-game way to leave fullscreen (only the OS-level Alt+Enter
+        /// shortcut, which most players never discover); this setting exposes
+        /// the toggle Settings needs regardless of that default.</summary>
+        public static bool Fullscreen { get; private set; } = true;
 
         static bool _loaded;
 
@@ -69,6 +77,7 @@ namespace Ironfield.Core
             SelectedDrone = PlayerPrefs.GetInt(KSelectedDrone, 0);
             UiScale = PlayerPrefs.GetFloat(KUiScale, 1f);
             Language = (Language)PlayerPrefs.GetInt(KLanguage, (int)Language.English);
+            Fullscreen = PlayerPrefs.GetInt(KFullscreen, 1) != 0;
             Apply();
         }
 
@@ -84,12 +93,19 @@ namespace Ironfield.Core
         public static void SetSelectedDrone(int v) { SelectedDrone = Mathf.Clamp(v, 0, 1); Save(); }
         public static void SetUiScale(float v) { UiScale = Mathf.Clamp(v, 0.8f, 1.4f); Save(); }
         public static void SetLanguage(Language v) { Language = v; Save(); }
+        public static void SetFullscreen(bool v) { Fullscreen = v; Apply(); Save(); }
 
         static void Apply()
         {
             AudioListener.volume = MasterVolume;
             int max = Mathf.Max(0, QualitySettings.names.Length - 1);
             QualitySettings.SetQualityLevel(Mathf.Clamp(QualityLevel, 0, max), true);
+            // Windowed mode uses the project's own default resolution at a
+            // resizable window (FullScreenMode.Windowed ignores resizableWindow
+            // in some Unity versions, so set it explicitly too) rather than
+            // whatever tiny/huge size the OS last remembered.
+            Screen.fullScreenMode = Fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
+            if (!Fullscreen) Screen.SetResolution(1600, 900, FullScreenMode.Windowed);
         }
 
         static void Save()
@@ -106,6 +122,7 @@ namespace Ironfield.Core
             PlayerPrefs.SetInt(KSelectedDrone, SelectedDrone);
             PlayerPrefs.SetFloat(KUiScale, UiScale);
             PlayerPrefs.SetInt(KLanguage, (int)Language);
+            PlayerPrefs.SetInt(KFullscreen, Fullscreen ? 1 : 0);
             PlayerPrefs.Save();
         }
 

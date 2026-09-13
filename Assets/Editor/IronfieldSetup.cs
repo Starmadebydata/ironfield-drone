@@ -623,6 +623,25 @@ namespace Ironfield.EditorTools
 
         static void ApplyPalette(GameObject go, string modelName, bool militarize)
         {
+            // The bush model has a real painted leaf texture (unlike the other
+            // external models, which are only ever recoloured flat) — extracted
+            // straight from the source .glb to bush_leaf.png since Unity's own
+            // FBX import doesn't carry it through. Route it to a texture-keeping
+            // material instead of the flat-colour palette path below.
+            if (modelName == "bush")
+            {
+                foreach (var r in go.GetComponentsInChildren<MeshRenderer>())
+                {
+                    var mats = r.sharedMaterials;
+                    var outMats = new Material[mats.Length];
+                    for (int i = 0; i < mats.Length; i++)
+                        outMats[i] = MakeTexturedStandard("ext_bush_leaves",
+                            ExtDir + "bush_leaf.png", 0.05f, 0f);
+                    r.sharedMaterials = outMats;
+                }
+                return;
+            }
+
             LoadPalettes();
             if (!_palettes.TryGetValue(modelName, out var map)) return;
             bool isTree = modelName.StartsWith("tree_");
@@ -661,6 +680,16 @@ namespace Ironfield.EditorTools
             // keep the importer's own axis-correction transform on `go`; only
             // move it to the origin so bounds math below is in a clean frame.
             go.transform.position = Vector3.zero;
+
+            // Poly Pizza's own scene template often bundles a stray "Cube"
+            // (a reference/background plate visible in their thumbnail) inside
+            // the downloaded glb — it survives the glb->fbx hop as a real mesh
+            // object and, left in, both pollutes the bounds/fit-scale below and
+            // renders as an extra visible box next to the model in-game. No
+            // legitimate model part is ever named exactly "Cube", so this is
+            // safe to strip unconditionally.
+            foreach (var t in go.GetComponentsInChildren<Transform>(true))
+                if (t != null && t.name == "Cube") Object.DestroyImmediate(t.gameObject);
 
             // rebuild materials from the source .glb base colours (the glb->fbx
             // hop mangles them), optionally pushed toward olive-drab.
@@ -2059,15 +2088,20 @@ namespace Ironfield.EditorTools
             var existing = AssetDatabase.LoadAssetAtPath<GameObject>(p);
             if (existing != null) return existing;
 
-            // Prefer the CC0/CC-BY tree models; only the bush stays procedural.
+            // Prefer the CC0/CC-BY models — every species now has a real
+            // external model; Bush ("Bush" by Quaternius, CC0, poly.pizza/m/
+            // ooG6CkLyE8, see CREDITS.md) replaced the old 3-sphere procedural
+            // placeholder flagged as visibly crude compared to the others.
             string extPath = kind switch
             {
                 Foliage.Broadleaf => ExtDir + "tree_broadleaf.fbx",
                 Foliage.Conifer   => ExtDir + "tree_conifer.fbx",
                 Foliage.Dead      => ExtDir + "tree_dead.fbx",
+                Foliage.Bush      => ExtDir + "bush.fbx",
                 _                 => null,
             };
-            float extH = kind == Foliage.Conifer ? 9f : kind == Foliage.Dead ? 8f : 8f;
+            float extH = kind == Foliage.Conifer ? 9f : kind == Foliage.Dead ? 8f
+                        : kind == Foliage.Bush ? 1.8f : 8f;
             if (extPath != null)
             {
                 var ext = LoadExternalModel(extPath, extH, FitAxis.Y);
@@ -2257,11 +2291,24 @@ namespace Ironfield.EditorTools
                 t.transform.localScale = new Vector3(s, s * (0.85f + (float)rng.NextDouble() * 0.4f), s);
                 t.transform.rotation = Quaternion.Euler(0, (float)rng.NextDouble() * 360f, 0);
                 SetLayerRecursive(t, GameLayers.Environment);
+                var rr2 = t.GetComponentsInChildren<Renderer>();
+                Bounds tb = rr2[0].bounds;
+                for (int k = 1; k < rr2.Length; k++) tb.Encapsulate(rr2[k].bounds);
+                // Re-ground to the exact sampled terrain height: LoadExternalModel's
+                // base-alignment (baked into the prefab at a single uniform fit
+                // scale) only cancels out exactly under uniform scaling. The Y
+                // scale here is deliberately non-uniform (s * 0.85..1.25, separate
+                // from the X/Z factor) for visual variety, and for models that
+                // carry an import axis-correction rotation mixing local Y with
+                // X/Z, that non-uniform scale drifts the true mesh base away from
+                // the pivot — reported by the user as trees floating above the
+                // ground when flying low. Measuring actual post-transform bounds
+                // and correcting the residual offset is correct regardless of the
+                // exact pivot/rotation quirk, instead of trusting the baked
+                // alignment to survive an arbitrary later scale.
+                t.transform.position += new Vector3(0f, world.y - tb.min.y, 0f);
                 if (src != bush)
                 {
-                    var rr2 = t.GetComponentsInChildren<Renderer>();
-                    Bounds tb = rr2[0].bounds;
-                    for (int k = 1; k < rr2.Length; k++) tb.Encapsulate(rr2[k].bounds);
                     var cc = t.AddComponent<CapsuleCollider>();
                     cc.radius = 0.5f;
                     cc.height = Mathf.Max(2f, tb.size.y / Mathf.Max(0.01f, t.transform.lossyScale.y));
@@ -2292,6 +2339,15 @@ namespace Ironfield.EditorTools
                     hb.transform.localScale = new Vector3(s, s * 1.3f, s);
                     hb.transform.rotation = Quaternion.Euler(0, (float)rng.NextDouble() * 360f, 0);
                     SetLayerRecursive(hb, GameLayers.Environment);
+                    // Same re-ground fix as the main scatter loop — non-uniform Y
+                    // scale can drift the base off the baked pivot alignment.
+                    var hbr = hb.GetComponentsInChildren<Renderer>();
+                    if (hbr.Length > 0)
+                    {
+                        Bounds hbb = hbr[0].bounds;
+                        for (int k = 1; k < hbr.Length; k++) hbb.Encapsulate(hbr[k].bounds);
+                        hb.transform.position += new Vector3(0f, w.y - hbb.min.y, 0f);
+                    }
                 }
             }
 
@@ -2765,6 +2821,35 @@ namespace Ironfield.EditorTools
                 AssetDatabase.CreateAsset(existing, p);
             }
             existing.enableInstancing = true; // GPU-batch draw calls instead of baking combined meshes into the scene
+            _matCache[name] = existing;
+            return existing;
+        }
+
+        /// <summary>Same as <see cref="MakeStandard"/> but keeps a real base-map
+        /// texture instead of a flat colour. The rest of this project's external
+        /// models get recoloured flat via ApplyPalette/palettes.txt because the
+        /// glb->fbx hop (materialImportMode: External) doesn't carry their
+        /// embedded textures through Unity's own FBX import — confirmed by
+        /// inspecting the imported bush.fbx sub-assets (no Texture2D present).
+        /// For a model whose actual painted texture matters (e.g. the bush's
+        /// leaf detail, extracted straight from the source .glb to `texPath` by
+        /// tools/blender rather than relying on FBX import), load it explicitly
+        /// here instead.</summary>
+        static Material MakeTexturedStandard(string name, string texPath, float smoothness, float metallic)
+        {
+            if (_matCache.TryGetValue(name, out var cached) && cached != null) return cached;
+            string p = SettingsDir + "/M_" + name + ".mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(p);
+            if (existing == null)
+            {
+                existing = new Material(Shader.Find(LitShader)) { name = name };
+                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(texPath);
+                if (tex != null) existing.SetTexture("_BaseMap", tex);
+                existing.SetFloat("_Smoothness", smoothness);
+                existing.SetFloat("_Metallic", metallic);
+                AssetDatabase.CreateAsset(existing, p);
+            }
+            existing.enableInstancing = true;
             _matCache[name] = existing;
             return existing;
         }

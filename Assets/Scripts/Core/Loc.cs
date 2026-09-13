@@ -277,6 +277,7 @@ namespace Ironfield.Core
             },
             ["settings.quality"] = new[] { "Quality", "Qualité", "画質", "Qualität", "Calidad", "画质", "畫質" },
             ["settings.language"] = new[] { "Language", "Langue", "言語", "Sprache", "Idioma", "语言", "語言" },
+            ["settings.fullscreen"] = new[] { "Fullscreen", "Plein écran", "フルスクリーン", "Vollbild", "Pantalla completa", "全屏", "全螢幕" },
 
             // ---- pause menu --------------------------------------------------
             ["pause.title"] = new[] { "Paused", "Pause", "一時停止", "Pausiert", "Pausado", "已暂停", "已暫停" },

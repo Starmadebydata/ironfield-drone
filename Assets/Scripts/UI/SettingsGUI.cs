@@ -17,7 +17,7 @@ namespace Ironfield.UI
             GUI.DrawTexture(new Rect(0, 0, w, h), Texture2D.whiteTexture);
             GUI.color = Color.white;
 
-            float pw = 440, ph = 474;
+            float pw = 440, ph = 504;
             float px = w * 0.5f - pw * 0.5f, py = h * 0.5f - ph * 0.5f;
             GUI.Box(new Rect(px, py, pw, ph), Core.Loc.Get("menu.settings"));
 
@@ -82,6 +82,11 @@ namespace Ironfield.UI
             int langCount = System.Enum.GetValues(typeof(Core.Language)).Length;
             if (UiSfx.Button(new Rect(sx, y, sw, rowH), Core.Loc.LanguageNames[(int)Core.GameSettings.Language]))
                 Core.GameSettings.SetLanguage((Core.Language)(((int)Core.GameSettings.Language + 1) % langCount));
+            y += rowH;
+
+            bool full = GUI.Toggle(new Rect(lx, y, pw - 40, rowH), Core.GameSettings.Fullscreen,
+                Core.Loc.Get("settings.fullscreen"));
+            if (full != Core.GameSettings.Fullscreen) Core.GameSettings.SetFullscreen(full);
             y += rowH + 14;
 
             if (UiSfx.Button(new Rect(px + pw * 0.5f - 60, y, 120, 34), Core.Loc.Get("common.back")))

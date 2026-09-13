@@ -22,6 +22,7 @@ rescaled and fitted with gameplay parts by `Assets/Editor/IronfieldSetup.cs`.
 | Broadleaf | "Common Tree" | **Quaternius** | **CC0** | https://poly.pizza/m/2paAm1ja4w |
 | Conifer | pine tree | **Danni Bittman** | CC-BY 3.0 | https://poly.pizza/m/2Qo-fmVKuSG |
 | Dead tree | bare tree | **Danni Bittman** | CC-BY 3.0 | https://poly.pizza/m/4GYen9Xm3Kj |
+| Bush | "Bush" | **Quaternius** | **CC0** | https://poly.pizza/m/ooG6CkLyE8 |
 
 ## Buildings (village)
 | In game | Model | Author | License | Source |
